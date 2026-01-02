@@ -21,3 +21,14 @@ env/
 
 # OS
 Thumbs.db
+# .gitignore
+
+# Ignore all log files
+*.log
+
+# Ignore specific log directories
+logs/
+log/
+npm-debug.log
+yarn-error.log
+*.log.*
