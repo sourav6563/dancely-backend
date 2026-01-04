@@ -1,13 +1,13 @@
 import mongoose, { Schema } from "mongoose";
 import { logger } from "../utils/logger";
-import { db, environment } from "../config";
+import { env } from "../env";
 
-export const dbURI = db.URI;
+export const dbURI = env.MONGODB_URI;
 
 const options = {
   autoIndex: true,
-  minPoolSize: db.minPoolSize,
-  maxPoolSize: db.maxPoolSize,
+  minPoolSize: env.DB_MIN_POOL_SIZE,
+  maxPoolSize: env.DB_MAX_POOL_SIZE,
   connectTimeoutMS: 10000,
   socketTimeoutMS: 45000,
 };
@@ -21,7 +21,7 @@ function setRunValidators() {
 mongoose.set("strictQuery", true);
 
 // Create the database connection
-if (environment !== "test") {
+if (env.NODE_ENV !== "test") {
   mongoose
     .plugin((schema: Schema) => {
       schema.pre("findOneAndUpdate", setRunValidators);

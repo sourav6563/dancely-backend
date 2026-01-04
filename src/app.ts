@@ -3,12 +3,14 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
 import { logger } from "./utils/logger";
+import { env } from "./env";
 import "./database/db";
+import healthCheckRouter from "./routes/healthcheck.route";
 const app = express();
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN,
+    origin: env.CORS_ORIGIN,
     credentials: true,
   }),
 );
@@ -35,4 +37,5 @@ app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ limit: "16kb", extended: true }));
 app.use(express.static("public"));
 app.use(cookieParser());
+app.use("/api/v1/healthcheck", healthCheckRouter);
 export { app };

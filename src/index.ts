@@ -1,8 +1,8 @@
 import { logger } from "./utils/logger";
-import { port } from "./config";
+import { env } from "./env";
 import { app } from "./app";
-const server = app.listen(port, () => {
-  logger.info(`server running on port : ${port}`);
+const server = app.listen(env.PORT, () => {
+  logger.info(`server running on port : ${env.PORT}`);
 });
 
 server.on("error", (error) => {

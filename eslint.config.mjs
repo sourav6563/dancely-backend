@@ -24,6 +24,7 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
 
   {
+    files: ["**/*.ts"],
     rules: {
       "@typescript-eslint/no-misused-promises": [
         "error",
