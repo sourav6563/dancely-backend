@@ -1,4 +1,4 @@
-import { Schema, model, Types } from "mongoose";
+import { Schema, model, Types, Model } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt, { SignOptions } from "jsonwebtoken";
 import { env } from "../env";
@@ -18,7 +18,16 @@ export interface User {
   passwordResetExpires?: Date;
 }
 
-const userSchema = new Schema<User>(
+export interface UserMethods {
+  isPasswordCorrect(password: string): Promise<boolean>;
+  generateAccessToken(): string;
+  generateRefreshToken(): string;
+}
+
+// Create a type that combines User interface with UserMethods
+type UserModel = Model<User, object, UserMethods>;
+
+const userSchema = new Schema<User, UserModel, UserMethods>(
   {
     username: {
       type: String,
@@ -75,9 +84,15 @@ userSchema.methods.isPasswordCorrect = function (password: string) {
 
 userSchema.methods.generateAccessToken = function () {
   return jwt.sign(
-    { _id: this._id, email: this.email, username: this.username },
+    {
+      _id: this._id,
+      email: this.email,
+      username: this.username,
+    },
     env.JWT_ACCESS_SECRET,
-    { expiresIn: env.JWT_ACCESS_EXPIRY as SignOptions["expiresIn"] },
+    {
+      expiresIn: env.JWT_ACCESS_EXPIRY as SignOptions["expiresIn"],
+    },
   );
 };
 
@@ -87,4 +102,4 @@ userSchema.methods.generateRefreshToken = function () {
   });
 };
 
-export const userModel = model<User>("User", userSchema);
+export const userModel = model<User, UserModel>("User", userSchema);
