@@ -24,6 +24,7 @@ export const generateAccessAndRefreshToken = async (userId: string | Types.Objec
     throw new ApiError(500, "something went wrong while generating access and refresh token");
   }
 };
+  
 
 export const signUpUser = asyncHandler(async (req, res) => {
   const { fullname, email, username, password } = req.body;
@@ -83,7 +84,7 @@ export const signUpUser = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Failed to send verification email");
   }
 
-  return res.status(201).json(new apiResponse(201, "User registered. Please verify your email."));
+  return res.status(201).json(new apiResponse(201, "User registered. Please verify your email"));
 });
 
 export const loginUser = asyncHandler(async (req, res) => {

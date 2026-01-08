@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 
 export const signUpSchema = z.object({
   fullname: z
@@ -28,3 +28,13 @@ export const signUpSchema = z.object({
       "Password must contain uppercase, lowercase, and a number",
     ),
 });
+
+export type SignUpDataType = z.infer<typeof signUpSchema>;
+
+export const loginSchema = z.object({
+  identifier: z.string().trim().min(1, "Email or username is required"),
+
+  password: z.string().trim().min(1, "Password is required"),
+});
+
+export type LoginDataType = z.infer<typeof loginSchema>;

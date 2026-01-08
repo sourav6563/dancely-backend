@@ -15,13 +15,7 @@ export const validate =
     const result = schema.safeParse(req[source]);
 
     if (!result.success) {
-      const errors = result.error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        message: issue.message,
-        code: issue.code,
-      }));
-
-      throw new ApiError(400, "Validation failed", errors);
+      throw new ApiError(400, "Validation failed", result.error.format());
     }
 
     req[source] = result.data;
