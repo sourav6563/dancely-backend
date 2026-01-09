@@ -6,8 +6,11 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { apiResponse } from "../utils/apiResponse";
 import { sendEmail } from "../utils/mailer";
 import crypto from "crypto";
+import { Request, Response } from "express";
+import { env } from "../env";
+import jwt from "jsonwebtoken";
 
-export const generateAccessAndRefreshToken = async (userId: string | Types.ObjectId) => {
+export const generateToken = async (userId: string | Types.ObjectId) => {
   try {
     const user = await userModel.findById(userId);
     if (!user) {
@@ -24,9 +27,8 @@ export const generateAccessAndRefreshToken = async (userId: string | Types.Objec
     throw new ApiError(500, "something went wrong while generating access and refresh token");
   }
 };
-  
 
-export const signUpUser = asyncHandler(async (req, res) => {
+export const signUpUser = asyncHandler(async (req: Request, res: Response) => {
   const { fullname, email, username, password } = req.body;
 
   const userByEmail = await userModel.findOne({ email });
@@ -40,18 +42,18 @@ export const signUpUser = asyncHandler(async (req, res) => {
     throw new ApiError(409, "Email and username belong to different accounts");
   }
 
-  if (userByEmail?.isEmailVerified) {
+  if (userByEmail?.isVerified) {
     throw new ApiError(409, "Email already exists");
   }
 
-  if (userByUsername?.isEmailVerified) {
+  if (userByUsername?.isVerified) {
     throw new ApiError(409, "Username already exists");
   }
 
   const verifyCode = crypto.randomInt(100000, 1000000).toString();
   const verifyExpiry = new Date(Date.now() + 60 * 60 * 1000);
 
-  const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+  const defaultImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(
     fullname,
   )}&background=random`;
 
@@ -61,7 +63,7 @@ export const signUpUser = asyncHandler(async (req, res) => {
     user.email = email;
     user.username = username;
     user.password = password;
-    user.profileImage = defaultAvatar;
+    user.profileImage = defaultImage;
     user.emailVerificationCode = verifyCode;
     user.emailVerificationExpires = verifyExpiry;
 
@@ -72,8 +74,8 @@ export const signUpUser = asyncHandler(async (req, res) => {
       email,
       username,
       password,
-      profileImage: defaultAvatar,
-      isEmailVerified: false,
+      profileImage: defaultImage,
+      isVerified: false,
       emailVerificationCode: verifyCode,
       emailVerificationExpires: verifyExpiry,
     });
@@ -87,14 +89,48 @@ export const signUpUser = asyncHandler(async (req, res) => {
   return res.status(201).json(new apiResponse(201, "User registered. Please verify your email"));
 });
 
-export const loginUser = asyncHandler(async (req, res) => {
+export const verifyAccount = asyncHandler(async (req: Request, res: Response) => {
+  const { code, username } = req.body;
+
+  const user = await userModel.findOne({ username: username });
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  if (user.isVerified) {
+    throw new ApiError(400, "User already verified");
+  }
+
+  const isCodeValid = user.emailVerificationCode === code;
+  const isCodeNotExpired =
+    user.emailVerificationExpires && new Date(user.emailVerificationExpires) > new Date();
+
+  if (!isCodeNotExpired) {
+    throw new ApiError(400, "Verification code expired. Please sign up again");
+  }
+
+  if (!isCodeValid) {
+    throw new ApiError(400, "Invalid verification code");
+  }
+
+  user.isVerified = true;
+  user.emailVerificationCode = undefined;
+  user.emailVerificationExpires = undefined;
+
+  await user.save({ validateBeforeSave: false });
+
+  return res.status(200).json(new apiResponse(200, "Email verified successfully"));
+});
+
+export const loginUser = asyncHandler(async (req: Request, res: Response) => {
   const { identifier, password } = req.body;
 
   const user = await userModel.findOne({
     $or: [{ email: identifier.toLowerCase() }, { username: identifier.toLowerCase() }],
   });
 
-  if (!user || !user.isEmailVerified) {
+  if (!user || !user.isVerified) {
     throw new ApiError(401, "Invalid credentials");
   }
 
@@ -104,17 +140,88 @@ export const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Invalid password");
   }
 
-  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id);
+  const { accessToken, refreshToken } = await generateToken(user._id);
+  const loggedInUser = await userModel.findById(user._id).select("-password -refreshToken");
+  if (!loggedInUser) {
+    throw new ApiError(500, "something went wrong while logging in user");
+  }
 
   const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict" as const,
+    secure: env.NODE_ENV === "production",
   };
 
   return res
     .status(200)
     .cookie("accessToken", accessToken, cookieOptions)
     .cookie("refreshToken", refreshToken, cookieOptions)
-    .json(new apiResponse(200, "User logged in successfully"));
+    .json(new apiResponse(200, "User logged in successfully", loggedInUser));
+});
+
+export const refreshAccessToken = asyncHandler(async (req: Request, res: Response) => {
+  const incomingRefreshToken =
+    req.cookies?.refreshToken || req.header("authorization")?.replace("Bearer ", "");
+
+  if (!incomingRefreshToken) {
+    throw new ApiError(401, "UNAUTHORIZED");
+  }
+
+  let decodedToken: jwt.JwtPayload;
+
+  try {
+    decodedToken = jwt.verify(incomingRefreshToken, env.JWT_REFRESH_SECRET) as jwt.JwtPayload;
+  } catch {
+    throw new ApiError(401, "INVALID_REFRESH_TOKEN");
+  }
+
+  const user = await userModel.findById(decodedToken._id);
+
+  if (!user || user.refreshToken !== incomingRefreshToken) {
+    throw new ApiError(401, "INVALID_REFRESH_TOKEN");
+  }
+
+  const { accessToken, refreshToken } = await generateToken(user._id);
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: env.NODE_ENV === "production",
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, cookieOptions)
+    .json(new apiResponse(200, "Access token refreshed successfully"));
+});
+
+export const logoutUser = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user?._id) {
+    throw new ApiError(401, "Unauthorized request");
+  }
+
+  const user = await userModel.findByIdAndUpdate(
+    req.user._id,
+    {
+      $unset: { refreshToken: 1 },
+    },
+    { new: true },
+  );
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: env.NODE_ENV === "production",
+  };
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", cookieOptions)
+    .clearCookie("refreshToken", cookieOptions)
+    .json(new apiResponse(200, "User logged out successfully"));
+});
+export const getCurrentUser = asyncHandler(async (req, res) => {
+  return res.status(200).json(new apiResponse(200, "User details fetched successfully", req.user));
 });
