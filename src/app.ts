@@ -6,7 +6,7 @@ import { logger } from "./utils/logger";
 import { env } from "./env";
 import "./database/db";
 import healthCheckRouter from "./routes/healthcheck.route";
-import { errorHandler } from "./middlewares/errors.middleware";
+import { errorHandler } from "./utils/validate";
 import userRouter from "./routes/user.route";
 const app = express();
 

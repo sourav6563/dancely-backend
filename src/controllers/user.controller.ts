@@ -9,6 +9,8 @@ import crypto from "crypto";
 import { Request, Response } from "express";
 import { env } from "../env";
 import jwt from "jsonwebtoken";
+import { unlink } from "fs/promises";
+import { deleteOnCloudinary, uploadOnCloudinary } from "../utils/cloudinary";
 
 export const generateToken = async (userId: string | Types.ObjectId) => {
   try {
@@ -29,7 +31,7 @@ export const generateToken = async (userId: string | Types.ObjectId) => {
 };
 
 export const signUpUser = asyncHandler(async (req: Request, res: Response) => {
-  const { fullname, email, username, password } = req.body;
+  const { name, email, username, password } = req.body;
 
   const userByEmail = await userModel.findOne({ email });
   const userByUsername = await userModel.findOne({ username });
@@ -54,12 +56,12 @@ export const signUpUser = asyncHandler(async (req: Request, res: Response) => {
   const verifyExpiry = new Date(Date.now() + 60 * 60 * 1000);
 
   const defaultImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-    fullname,
+    name,
   )}&background=random`;
 
   const user = userByEmail || userByUsername;
   if (user) {
-    user.fullname = fullname;
+    user.name = name;
     user.email = email;
     user.username = username;
     user.password = password;
@@ -70,7 +72,7 @@ export const signUpUser = asyncHandler(async (req: Request, res: Response) => {
     await user.save();
   } else {
     await userModel.create({
-      fullname,
+      name,
       email,
       username,
       password,
@@ -90,9 +92,9 @@ export const signUpUser = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const verifyAccount = asyncHandler(async (req: Request, res: Response) => {
-  const { code, username } = req.body;
+  const { code, email } = req.body;
 
-  const user = await userModel.findOne({ username: username });
+  const user = await userModel.findOne({ email: email });
 
   if (!user) {
     throw new ApiError(404, "User not found");
@@ -195,12 +197,13 @@ export const refreshAccessToken = asyncHandler(async (req: Request, res: Respons
 });
 
 export const logoutUser = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.user?._id) {
+  const id = req.user?._id;
+  if (!id) {
     throw new ApiError(401, "Unauthorized request");
   }
 
   const user = await userModel.findByIdAndUpdate(
-    req.user._id,
+    id,
     {
       $unset: { refreshToken: 1 },
     },
@@ -222,6 +225,308 @@ export const logoutUser = asyncHandler(async (req: Request, res: Response) => {
     .clearCookie("refreshToken", cookieOptions)
     .json(new apiResponse(200, "User logged out successfully"));
 });
+
 export const getCurrentUser = asyncHandler(async (req, res) => {
   return res.status(200).json(new apiResponse(200, "User details fetched successfully", req.user));
+});
+
+export const updateName = asyncHandler(async (req: Request, res: Response) => {
+  const { name } = req.body;
+
+  const user = await userModel.findByIdAndUpdate(
+    req.user?._id,
+    { $set: { name: name } },
+    { new: true },
+  );
+
+  if (!user) {
+    throw new ApiError(404, "Name update failed User not found");
+  }
+  return res.status(200).json(new apiResponse(200, "Name updated successfully", user));
+});
+
+export const updateEmail = asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  const existingUser = await userModel.findOne({
+    email: email,
+    _id: { $ne: req.user?._id },
+  });
+
+  if (existingUser) {
+    throw new ApiError(409, "Email is already in use");
+  }
+
+  const user = await userModel.findByIdAndUpdate(
+    req.user?._id,
+    { $set: { email: email } },
+    { new: true },
+  );
+
+  if (!user) {
+    throw new ApiError(404, "Email update failed User not found");
+  }
+
+  return res.status(200).json(new apiResponse(200, "Email updated successfully", user));
+});
+
+export const updateProfileImage = asyncHandler(async (req: Request, res: Response) => {
+  const profileImageLocalpath = req.file?.path;
+
+  if (!profileImageLocalpath) {
+    throw new ApiError(400, "profileImage file is required");
+  }
+
+  let profileImage = null;
+
+  try {
+    const allowedImageTypes = ["image/jpeg", "image/png"];
+
+    if (!allowedImageTypes.includes(req.file!.mimetype)) {
+      throw new ApiError(400, "Invalid profileImage file");
+    }
+
+    profileImage = await uploadOnCloudinary(profileImageLocalpath);
+
+    if (!profileImage?.url) {
+      throw new ApiError(500, "profileImage upload failed");
+    }
+
+    const user = await userModel.findByIdAndUpdate(
+      req.user?._id,
+      { $set: { profileImage: profileImage.url } },
+      { new: true },
+    );
+
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    return res
+      .status(200)
+      .json(new apiResponse(200, "User profileImage updated successfully", user));
+  } catch (error) {
+    if (profileImage?.public_id) {
+      await deleteOnCloudinary(profileImage.public_id).catch(() => {});
+    }
+    throw error;
+  } finally {
+    await unlink(profileImageLocalpath).catch(() => {});
+  }
+});
+
+export const updatePassword = asyncHandler(async (req: Request, res: Response) => {
+  const { oldPassword, newPassword } = req.body;
+
+  const user = await userModel.findById(req.user?._id);
+  if (!user) {
+    throw new ApiError(404, "update password failed User not found");
+  }
+
+  const ispasswordValidated = await user?.isPasswordCorrect(oldPassword);
+
+  if (!ispasswordValidated) {
+    throw new ApiError(401, "old password is incorrect");
+  }
+  user.password = newPassword;
+  await user.save({ validateBeforeSave: false });
+  return res.status(200).json(new apiResponse(200, "Password changed successfully"));
+});
+export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  const user = await userModel.findOne({ email });
+
+  // if (!user) {
+  //   throw new ApiError(404, "User not found");
+  // }
+
+  if (!user || !user.isVerified) {
+    throw new ApiError(400, "User not found");
+  }
+
+  const resetCode = crypto.randomInt(100000, 1000000).toString();
+  const resetExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+  user.passwordResetCode = resetCode;
+  user.passwordResetExpires = resetExpiry;
+
+  await user.save({ validateBeforeSave: false });
+
+  const mail = await sendEmail("RESET", user.email, user.username, resetCode);
+
+  if (!mail.success) {
+    throw new ApiError(500, "Failed to send reset password email");
+  }
+
+  return res.status(200).json(new apiResponse(200, "Password reset code sent to your email"));
+});
+
+export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { email, code, newPassword } = req.body;
+
+  const user = await userModel.findOne({ email });
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const isCodeValid = user.passwordResetCode === code;
+  const isCodeNotExpired =
+    user.passwordResetExpires && new Date(user.passwordResetExpires) > new Date();
+
+  if (!isCodeNotExpired) {
+    throw new ApiError(400, "Reset code expired. Please try again");
+  }
+
+  if (!isCodeValid) {
+    throw new ApiError(400, "Invalid reset code");
+  }
+
+  user.password = newPassword;
+  user.passwordResetCode = undefined;
+  user.passwordResetExpires = undefined;
+  user.refreshToken = undefined;
+
+  await user.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new apiResponse(200, "Password reset successful. Please login again"));
+});
+
+export const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
+  const { username } = req.params;
+  const myId = new Types.ObjectId(req.user?._id);
+
+  if (!username?.trim()) {
+    throw new ApiError(400, "username is required");
+  }
+
+  const profile = await userModel.aggregate([
+    // 1. find the user
+    {
+      $match: {
+        username: username.trim().toLowerCase(),
+      },
+    },
+
+    // 2. who follows this user (followers)
+    {
+      $lookup: {
+        from: "follows",
+        localField: "_id",
+        foreignField: "following",
+        as: "followers",
+      },
+    },
+
+    // 3. whom this user follows (following)
+    {
+      $lookup: {
+        from: "follows",
+        localField: "_id",
+        foreignField: "follower",
+        as: "following",
+      },
+    },
+
+    // 4. add computed fields
+    {
+      $addFields: {
+        followersCount: { $size: "$followers" },
+        followingCount: { $size: "$following" },
+
+        isFollowedByMe: {
+          $cond: {
+            if: { $in: [myId, "$followers.follower"] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+
+    // 5. remove heavy arrays if not needed
+    {
+      $project: {
+        password: 0,
+        refreshToken: 0,
+        emailVerificationCode: 0,
+        emailVerificationExpires: 0,
+        passwordResetCode: 0,
+        passwordResetExpires: 0,
+        followers: 0,
+        following: 0,
+      },
+    },
+  ]);
+
+  if (!profile.length) {
+    throw new ApiError(404, "User not found");
+  }
+
+  return res
+    .status(200)
+    .json(new apiResponse(200, profile[0], "User profile fetched successfully"));
+});
+
+export const getWatchHistory = asyncHandler(async (req: Request, res: Response) => {
+  const myId = new Types.ObjectId(req.user?._id);
+
+  const userWithHistory = await userModel.aggregate([
+    {
+      $match: {
+        _id: myId,
+      },
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullname: 1,
+                    username: 1,
+                    profileimage: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: "$owner",
+              },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  // The aggregation pipeline returns an array, even if only one document is matched.
+  // We check if the array is empty, which means the user was not found.
+  if (!userWithHistory?.length) {
+    throw new ApiError(404, "User not found or watch history is empty");
+  }
+
+  // Access the first (and only) element of the array to get the user document,
+  // then extract the watchHistory from it.
+  return res
+    .status(200)
+    .json(
+      new apiResponse(200, "Watch history fetched successfully", userWithHistory[0].watchHistory),
+    );
 });

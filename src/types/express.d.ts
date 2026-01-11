@@ -1,8 +1,5 @@
-import { User } from "../models/user.model";
-declare global {
-  namespace Express {
-    interface Request {
-      user?: User;
-    }
+declare namespace Express {
+  interface Request {
+    user?: import("../models/user.model").User;
   }
 }

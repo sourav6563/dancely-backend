@@ -7,15 +7,15 @@ export interface User {
   _id: Types.ObjectId;
   username: string;
   email: string;
-  fullname: string;
+  name: string;
   profileImage?: string;
   password: string;
-  watchHistory: Types.ObjectId[];
+  watchHistory?: Types.ObjectId[];
   refreshToken?: string;
-  isVerified: boolean;
+  isVerified?: boolean;
   emailVerificationCode?: string;
   emailVerificationExpires?: Date;
-  passwordResetToken?: string;
+  passwordResetCode?: string;
   passwordResetExpires?: Date;
 }
 
@@ -45,7 +45,7 @@ const userSchema = new Schema<User, UserModel, UserMethods>(
       lowercase: true,
       trim: true,
     },
-    fullname: {
+    name: {
       type: String,
       required: true,
       trim: true,
@@ -54,6 +54,7 @@ const userSchema = new Schema<User, UserModel, UserMethods>(
     password: {
       type: String,
       required: true,
+      select: false,
     },
     watchHistory: [
       {
@@ -65,11 +66,24 @@ const userSchema = new Schema<User, UserModel, UserMethods>(
     isVerified: {
       type: Boolean,
       default: false,
+      select: false,
     },
-    emailVerificationCode: String,
-    emailVerificationExpires: Date,
-    passwordResetToken: String,
-    passwordResetExpires: Date,
+    emailVerificationCode: {
+      type: String,
+      select: false,
+    },
+    emailVerificationExpires: {
+      type: Date,
+      select: false,
+    },
+    passwordResetCode: {
+      type: String,
+      select: false,
+    },
+    passwordResetExpires: {
+      type: Date,
+      select: false,
+    },
   },
   { timestamps: true },
 );
