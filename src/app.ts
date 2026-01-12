@@ -3,11 +3,12 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
 import { logger } from "./utils/logger";
-import { env } from "./env";
-import "./database/db";
+import { env } from "./config/env";
+import "./config/db";
 import healthCheckRouter from "./routes/healthcheck.route";
-import { errorHandler } from "./middlewares/errors.middleware";
+import { errorHandler } from "./middlewares/errorhandler.middware";
 import userRouter from "./routes/user.route";
+import authRouter from "./routes/auth.route";
 const app = express();
 
 app.use(
@@ -40,6 +41,8 @@ app.use(express.urlencoded({ limit: "16kb", extended: true }));
 app.use(express.static("public"));
 app.use(cookieParser());
 app.use("/api/v1/healthcheck", healthCheckRouter);
+app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/user", userRouter);
+
 app.use(errorHandler);
 export { app };

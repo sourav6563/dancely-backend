@@ -1,20 +1,21 @@
 import { Schema, model, Types, Model } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt, { SignOptions } from "jsonwebtoken";
-import { env } from "../env";
+import { env } from "../config/env";
 
 export interface User {
+  _id: Types.ObjectId;
   username: string;
   email: string;
-  fullname: string;
+  name: string;
   profileImage?: string;
   password: string;
-  watchHistory: Types.ObjectId[];
+  watchHistory?: Types.ObjectId[];
   refreshToken?: string;
-  isEmailVerified: boolean;
+  isVerified?: boolean;
   emailVerificationCode?: string;
   emailVerificationExpires?: Date;
-  passwordResetToken?: string;
+  passwordResetCode?: string;
   passwordResetExpires?: Date;
 }
 
@@ -44,7 +45,7 @@ const userSchema = new Schema<User, UserModel, UserMethods>(
       lowercase: true,
       trim: true,
     },
-    fullname: {
+    name: {
       type: String,
       required: true,
       trim: true,
@@ -61,14 +62,22 @@ const userSchema = new Schema<User, UserModel, UserMethods>(
       },
     ],
     refreshToken: String,
-    isEmailVerified: {
+    isVerified: {
       type: Boolean,
       default: false,
     },
-    emailVerificationCode: String,
-    emailVerificationExpires: Date,
-    passwordResetToken: String,
-    passwordResetExpires: Date,
+    emailVerificationCode: {
+      type: String,
+    },
+    emailVerificationExpires: {
+      type: Date,
+    },
+    passwordResetCode: {
+      type: String,
+    },
+    passwordResetExpires: {
+      type: Date,
+    },
   },
   { timestamps: true },
 );
