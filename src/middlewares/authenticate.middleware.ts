@@ -6,7 +6,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { env } from "../config/env";
 import { userModel } from "../models/user.model";
 
-export const verifyToken = asyncHandler(async (req: Request, _: Response, next: NextFunction) => {
+export const authenticate = asyncHandler(async (req: Request, _: Response, next: NextFunction) => {
   const token = req.cookies?.accessToken || req.header("authorization")?.replace("Bearer ", "");
 
   if (!token) {
