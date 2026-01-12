@@ -7,7 +7,7 @@ import { apiResponse } from "../utils/apiResponse";
 import { sendEmail } from "../mail/mailer";
 import crypto from "crypto";
 import { Request, Response } from "express";
-import { env } from "../config/env";
+import { env } from "../env";
 import jwt from "jsonwebtoken";
 
 export const generateToken = async (userId: string | Types.ObjectId) => {

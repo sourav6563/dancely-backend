@@ -1,7 +1,7 @@
 import { Schema, model, Types, Model } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt, { SignOptions } from "jsonwebtoken";
-import { env } from "../config/env";
+import { env } from "../env";
 
 export interface User {
   _id: Types.ObjectId;
