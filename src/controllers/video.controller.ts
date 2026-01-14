@@ -8,6 +8,9 @@ import { logger } from "../utils/logger";
 import { Request, Response } from "express";
 import { unlink } from "fs/promises";
 import { VideoQuery } from "../validators/video.validator";
+import { Like } from "../models/like.model";
+import { Comment } from "../models/comment.model";
+import { userModel } from "../models/user.model";
 
 export const uploadVideo = asyncHandler(async (req: Request, res: Response) => {
   const owner = req.user?._id;
@@ -147,5 +150,134 @@ export const getAllVideos = asyncHandler(async (req: Request, res: Response) => 
     limit,
   });
 
-  return res.status(200).json(new apiResponse(200, results, "Videos fetched"));
+  return res.status(200).json(new apiResponse(200, "Videos fetched", results));
+});
+
+export const updateVideoDetails = asyncHandler(async (req: Request, res: Response) => {
+  const { videoId } = req.params;
+  const ownerId = req.user?._id;
+  const { title, description } = req.body;
+
+  const video = await Video.findById(videoId);
+  if (!video) throw new ApiError(404, "Invalid Id Video not found");
+
+  if (!video.owner.equals(ownerId)) {
+    throw new ApiError(403, "You can only update your own videos");
+  }
+
+  const updatedVideo = await Video.findByIdAndUpdate(
+    videoId,
+    {
+      $set: {
+        title,
+        description,
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    },
+  ).populate("owner", "username name profileImage");
+
+  if (!updatedVideo) {
+    throw new ApiError(500, "Failed to update video details");
+  }
+
+  return res.status(200).json(new apiResponse(200, "Video updated successfully", updatedVideo));
+});
+
+export const getUserVideos = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id;
+
+  if (!userId) {
+    throw new ApiError(401, "Unauthorized");
+  }
+
+  try {
+    const videos = await Video.find({ owner: userId })
+      .sort({ createdAt: -1 }) // newest first
+      .populate("owner", "username fullname profileImage");
+
+    return res.status(200).json(new apiResponse(200, "User videos fetched successfully", videos));
+  } catch (error) {
+    logger.error("getUserVideos error:", error);
+    throw new ApiError(500, "Failed to fetch user videos");
+  }
+});
+
+export const togglePublishStatus = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+  const userId = req.user?._id;
+
+  const video = await Video.findById(videoId);
+  if (!video) {
+    throw new ApiError(404, "Invalid Id Video not found");
+  }
+
+  if (!video.owner.equals(userId)) {
+    throw new ApiError(403, "You can only update your own videos");
+  }
+
+  video.isPublished = !video.isPublished;
+  await video.save({ validateModifiedOnly: true });
+
+  logger.info(
+    `Video ${video.isPublished ? "PUBLISHED" : "UNPUBLISHED"} | ID: ${videoId} | Owner: ${userId}`,
+  );
+
+  return res.status(200).json(
+    new apiResponse(200, `Video is now ${video.isPublished ? "published" : "unpublished"}`, {
+      videoId: video._id,
+      isPublished: video.isPublished,
+    }),
+  );
+});
+
+export const deleteVideo = asyncHandler(async (req: Request, res: Response) => {
+  const { videoId } = req.params;
+  const userId = req.user?._id;
+
+  const video = await Video.findById(videoId);
+
+  if (!video) {
+    throw new ApiError(404, " Invalid Id Video not found");
+  }
+
+  if (video.owner.toString() !== userId?.toString()) {
+    throw new ApiError(403, "You are not authorized to delete this video");
+  }
+
+  const videoPid = video.videoFile?.public_id;
+  const thumbPid = video.thumbnail?.public_id;
+
+  try {
+    await Video.findByIdAndDelete(videoId);
+
+    Promise.all([
+      Like.deleteMany({ video: videoId }),
+      Comment.deleteMany({ video: videoId }),
+      userModel.updateMany({ watchHistory: videoId }, { $pull: { watchHistory: videoId } }),
+    ]).catch((err) => {
+      logger.warn(`DB cleanup failed for video ${videoId}`, err);
+    });
+
+    if (videoPid) {
+      deleteOnCloudinary(videoPid).catch((err) =>
+        logger.warn(`Cloudinary delete failed for ${videoPid}`, err),
+      );
+    }
+
+    if (thumbPid) {
+      deleteOnCloudinary(thumbPid).catch((err) =>
+        logger.warn(`Cloudinary delete failed for ${thumbPid}`, err),
+      );
+    }
+    logger.info(`Video deleted successfully | VideoID: ${videoId} | Owner: ${userId}`);
+    return res
+      .status(200)
+      .json(new apiResponse(200, "Video deleted successfully", { deletedVideoId: videoId }));
+  } catch (error) {
+    logger.error(`deleteVideo critical failure | VideoID: ${videoId}`, error);
+    throw new ApiError(500, "Failed to delete video");
+  }
 });

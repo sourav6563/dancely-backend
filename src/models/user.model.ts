@@ -26,7 +26,8 @@ export interface UserMethods {
 }
 
 // Create a type that combines User interface with UserMethods
-type UserModel = Model<User, object, UserMethods>;
+export type UserModel = Model<User, object, UserMethods>;
+
 
 const userSchema = new Schema<User, UserModel, UserMethods>(
   {

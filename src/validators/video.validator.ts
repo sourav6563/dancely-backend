@@ -16,4 +16,10 @@ export const videoQuerySchema = z.object({
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
-export type   VideoQuery = z.infer<typeof videoQuerySchema>;
+export type VideoQuery = z.infer<typeof videoQuerySchema>;
+
+export const videoUpdateDetailsSchema = z.object({
+  title: z.string().min(1, "Title is required").trim(),
+  description: z.string().min(1, "Description is required").trim(),
+});
+export type VideoUpdateDetails = z.infer<typeof videoUpdateDetailsSchema>;

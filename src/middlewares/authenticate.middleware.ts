@@ -22,7 +22,7 @@ export const authenticate = asyncHandler(async (req: Request, _: Response, next:
       throw new ApiError(401, "UNAUTHORIZED");
     }
 
-    req.user = user;
+    req.user = user
     next();
   } catch (error: any) {
     if (error.name === "TokenExpiredError") {

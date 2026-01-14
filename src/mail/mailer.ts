@@ -1,8 +1,8 @@
 import { Resend } from "resend";
 import { getEmailTemplate } from "./emailtemplate";
-import { env } from "process";
+import { env } from "../env";
 
-const resend = new Resend(env.RESEND_API_KEY!);
+const resend = new Resend(env.RESEND_API_KEY);
 
 type EmailType = "VERIFY" | "RESET";
 

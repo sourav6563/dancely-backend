@@ -1,7 +1,18 @@
 import { Router } from "express";
 import { validate, ValidationSource } from "../middlewares/validate.middleware";
-import { uploadVideoSchema, videoQuerySchema } from "../validators/video.validator";
-import { getAllVideos, uploadVideo } from "../controllers/video.controller";
+import {
+  uploadVideoSchema,
+  videoQuerySchema,
+  videoUpdateDetailsSchema,
+} from "../validators/video.validator";
+import {
+  deleteVideo,
+  getAllVideos,
+  getUserVideos,
+  togglePublishStatus,
+  updateVideoDetails,
+  uploadVideo,
+} from "../controllers/video.controller";
 import { upload } from "../middlewares/multer.middleware";
 import { authenticate } from "../middlewares/authenticate.middleware";
 
@@ -20,5 +31,16 @@ router.route("/upload-video").post(
   validate(uploadVideoSchema, ValidationSource.BODY),
   uploadVideo,
 );
+
+router
+  .route("/update/:videoId")
+  .patch(
+    authenticate,
+    validate(videoUpdateDetailsSchema, ValidationSource.BODY),
+    updateVideoDetails,
+  );
+router.route("/user-videos").get(authenticate, getUserVideos);
+router.route("/toggle-status/:videoId").get(authenticate, togglePublishStatus);
+router.route("/delete/:videoId").delete(authenticate, deleteVideo);
 
 export default router;
