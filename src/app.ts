@@ -11,6 +11,7 @@ import userRouter from "./routes/user.route";
 import authRouter from "./routes/auth.route";
 import videoRouter from "./routes/video.route";
 import likeRouter from "./routes/like.route";
+import commentRouter from "./routes/comment.route";
 const app = express();
 
 app.use(
@@ -47,6 +48,7 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/video", videoRouter);
 app.use("/api/v1/like", likeRouter);
+app.use("/api/v1/comment", commentRouter);
 
 app.use(errorHandler);
 export { app };
