@@ -13,6 +13,7 @@ import videoRouter from "./routes/video.route";
 import likeRouter from "./routes/like.route";
 import commentRouter from "./routes/comment.route";
 import playlistRouter from "./routes/playlist.route";
+import dashboardRouter from "./routes/dashboard.route";
 const app = express();
 
 app.use(
@@ -51,6 +52,7 @@ app.use("/api/v1/video", videoRouter);
 app.use("/api/v1/like", likeRouter);
 app.use("/api/v1/comment", commentRouter);
 app.use("/api/v1/playlist", playlistRouter);
+app.use("/api/v1/dashboard", dashboardRouter);
 
 app.use(errorHandler);
 export { app };

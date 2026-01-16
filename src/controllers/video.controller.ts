@@ -303,25 +303,6 @@ export const updateVideoDetails = asyncHandler(async (req: Request, res: Respons
   return res.status(200).json(new apiResponse(200, "Video updated successfully", updatedVideo));
 });
 
-export const getUserVideos = asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.user?._id;
-
-  if (!userId) {
-    throw new ApiError(401, "Unauthorized");
-  }
-
-  try {
-    const videos = await Video.find({ owner: userId })
-      .sort({ createdAt: -1 }) // newest first
-      .populate("owner", "username fullname profileImage");
-
-    return res.status(200).json(new apiResponse(200, "User videos fetched successfully", videos));
-  } catch (error) {
-    logger.error("getUserVideos error:", error);
-    throw new ApiError(500, "Failed to fetch user videos");
-  }
-});
-
 export const togglePublishStatus = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   const userId = req.user?._id;

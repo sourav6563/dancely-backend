@@ -8,7 +8,6 @@ import {
 import {
   deleteVideo,
   getAllVideos,
-  getUserVideos,
   getVideoById,
   togglePublishStatus,
   updateVideoDetails,
@@ -18,15 +17,11 @@ import { upload } from "../middlewares/multer.middleware";
 import { authenticate } from "../middlewares/authenticate.middleware";
 
 const router = Router();
-
-router
-  .route("/")
-  .get(authenticate, validate(videoQuerySchema, ValidationSource.QUERY), getAllVideos);
-
-router.route("/id/:videoId").get(authenticate, getVideoById);
-
-router.route("/upload-video").post(
-  authenticate,
+router.use(authenticate);
+//get all videos
+router.route("/").get(validate(videoQuerySchema, ValidationSource.QUERY), getAllVideos);
+//upload video
+router.route("/upload").post(
   upload.fields([
     { name: "video", maxCount: 1 },
     { name: "thumbnail", maxCount: 1 },
@@ -34,16 +29,14 @@ router.route("/upload-video").post(
   validate(uploadVideoSchema, ValidationSource.BODY),
   uploadVideo,
 );
-
+//fetch video/update/delete by Id
 router
-  .route("/update/:videoId")
-  .patch(
-    authenticate,
-    validate(videoUpdateDetailsSchema, ValidationSource.BODY),
-    updateVideoDetails,
-  );
-router.route("/user-videos").get(authenticate, getUserVideos);
-router.route("/toggle-status/:videoId").get(authenticate, togglePublishStatus);
-router.route("/delete/:videoId").delete(authenticate, deleteVideo);
+  .route("/:videoId")
+  .get(getVideoById)
+  .patch(validate(videoUpdateDetailsSchema, ValidationSource.BODY), updateVideoDetails)
+  .delete(deleteVideo);
+
+//toggle video status
+router.route("/toggle-publish/:videoId").patch(togglePublishStatus);
 
 export default router;
