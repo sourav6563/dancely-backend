@@ -129,7 +129,7 @@ export const getLikedVideos = asyncHandler(async (req: Request, res: Response) =
                 {
                   $project: {
                     username: 1,
-                    fullname: 1,
+                    name: 1,
                     profileImage: 1,
                   },
                 },

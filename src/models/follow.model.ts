@@ -1,11 +1,11 @@
 import { Schema, model, Types } from "mongoose";
 
-interface Follow {
+interface IFollow {
   follower: Types.ObjectId; // who follows
   following: Types.ObjectId; // whom they follow
 }
 
-const followSchema = new Schema<Follow>(
+const followSchema = new Schema<IFollow>(
   {
     follower: {
       type: Schema.Types.ObjectId,
@@ -26,4 +26,4 @@ const followSchema = new Schema<Follow>(
 /* Prevent duplicate follow */
 followSchema.index({ follower: 1, following: 1 }, { unique: true });
 
-export const Follow = model<Follow>("Follow", followSchema);
+export const Follow = model<IFollow>("Follow", followSchema);

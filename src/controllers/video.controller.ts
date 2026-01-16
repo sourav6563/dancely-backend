@@ -12,6 +12,7 @@ import { Like } from "../models/like.model";
 import { Comment } from "../models/comment.model";
 import { userModel } from "../models/user.model";
 import { Types } from "mongoose";
+import { Playlist } from "../models/playlist.model";
 
 export const uploadVideo = asyncHandler(async (req: Request, res: Response) => {
   const owner = req.user?._id;
@@ -355,6 +356,7 @@ export const deleteVideo = asyncHandler(async (req: Request, res: Response) => {
       Like.deleteMany({ video: videoId }),
       Comment.deleteMany({ video: videoId }),
       userModel.updateMany({ watchHistory: videoId }, { $pull: { watchHistory: videoId } }),
+      Playlist.updateMany({ videos: videoId }, { $pull: { videos: videoId } }),
     ]).catch((err) => {
       logger.warn(`DB cleanup failed for video ${videoId}`, err);
     });

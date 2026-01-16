@@ -14,6 +14,7 @@ import likeRouter from "./routes/like.route";
 import commentRouter from "./routes/comment.route";
 import playlistRouter from "./routes/playlist.route";
 import dashboardRouter from "./routes/dashboard.route";
+import communityPostRouter from "./routes/communityPost.route";
 const app = express();
 
 app.use(
@@ -46,12 +47,14 @@ app.use(express.urlencoded({ limit: "16kb", extended: true }));
 app.use(express.static("public"));
 app.use(cookieParser());
 app.use("/api/v1/healthcheck", healthCheckRouter);
+
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/video", videoRouter);
 app.use("/api/v1/like", likeRouter);
 app.use("/api/v1/comment", commentRouter);
 app.use("/api/v1/playlist", playlistRouter);
+app.use("/api/v1/communitypost", communityPostRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
 
 app.use(errorHandler);

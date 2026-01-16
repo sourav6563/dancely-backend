@@ -2,7 +2,7 @@
 import { Schema, model, Types, Model } from "mongoose";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
-interface Video {
+interface IVideo {
   owner: Types.ObjectId;
   videoFile: {
     url: string;
@@ -19,7 +19,7 @@ interface Video {
   isPublished: boolean;
 }
 
-const videoSchema = new Schema<Video>(
+const videoSchema = new Schema<IVideo>(
   {
     owner: {
       type: Schema.Types.ObjectId,
@@ -65,8 +65,8 @@ videoSchema.plugin(mongooseAggregatePaginate);
 
 videoSchema.index({ title: "text", description: "text" });
 
-interface VideoModel extends Model<Video> {
+interface VideoModel extends Model<IVideo> {
   aggregatePaginate: any;
 }
 
-export const Video = model<Video, VideoModel>("Video", videoSchema);
+export const Video = model<IVideo, VideoModel>("Video", videoSchema);

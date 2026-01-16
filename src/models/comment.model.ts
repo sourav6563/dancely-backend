@@ -1,14 +1,15 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Schema, model, Types, Model } from "mongoose";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
-interface Comment {
+interface IComment {
   video: Types.ObjectId;
   owner: Types.ObjectId;
   communityPost: Types.ObjectId;
   content: string;
 }
 
-const commentSchema = new Schema<Comment>(
+const commentSchema = new Schema<IComment>(
   {
     content: {
       type: String,
@@ -38,8 +39,8 @@ const commentSchema = new Schema<Comment>(
 );
 
 commentSchema.plugin(mongooseAggregatePaginate);
-interface CommentModel extends Model<Comment> {
+interface CommentModel extends Model<IComment> {
   aggregatePaginate: any;
 }
 
-export const Comment = model<Comment, CommentModel>("Comment", commentSchema);
+export const Comment = model<IComment, CommentModel>("Comment", commentSchema);

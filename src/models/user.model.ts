@@ -3,7 +3,7 @@ import bcrypt from "bcrypt";
 import jwt, { SignOptions } from "jsonwebtoken";
 import { env } from "../env";
 
-export interface User {
+export interface IUser {
   _id: Types.ObjectId;
   username: string;
   email: string;
@@ -19,17 +19,16 @@ export interface User {
   passwordResetExpires?: Date;
 }
 
-export interface UserMethods {
+export interface IUserMethods {
   isPasswordCorrect(password: string): Promise<boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): string;
 }
 
 // Create a type that combines User interface with UserMethods
-export type UserModel = Model<User, object, UserMethods>;
+export type UserModel = Model<IUser, object, IUserMethods>;
 
-
-const userSchema = new Schema<User, UserModel, UserMethods>(
+const userSchema = new Schema<IUser, UserModel, IUserMethods>(
   {
     username: {
       type: String,
@@ -112,4 +111,4 @@ userSchema.methods.generateRefreshToken = function () {
   });
 };
 
-export const userModel = model<User, UserModel>("User", userSchema);
+export const userModel = model<IUser, UserModel>("User", userSchema);

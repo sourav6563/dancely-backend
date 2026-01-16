@@ -19,8 +19,8 @@ import { authenticate } from "../middlewares/authenticate.middleware";
 const router = Router();
 router.use(authenticate);
 //get all videos
-router.route("/").get(validate(videoQuerySchema, ValidationSource.QUERY), getAllVideos);
 //upload video
+router.route("/").get(validate(videoQuerySchema, ValidationSource.QUERY), getAllVideos);
 router.route("/upload").post(
   upload.fields([
     { name: "video", maxCount: 1 },

@@ -1,13 +1,13 @@
 import { Schema, model, Types } from "mongoose";
 
-interface Playlist {
+interface IPlaylist {
   owner: Types.ObjectId;
   videos: Types.ObjectId[];
   name: string;
   description: string;
 }
 
-const playlistSchema = new Schema<Playlist>(
+const playlistSchema = new Schema<IPlaylist>(
   {
     owner: {
       type: Schema.Types.ObjectId,
@@ -37,4 +37,4 @@ const playlistSchema = new Schema<Playlist>(
   },
 );
 
-export const Playlist = model<Playlist>("Playlist", playlistSchema);
+export const Playlist = model<IPlaylist>("Playlist", playlistSchema);
