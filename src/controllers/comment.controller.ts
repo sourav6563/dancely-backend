@@ -238,7 +238,7 @@ export const deleteComment = asyncHandler(async (req: Request, res: Response) =>
   }
 
   if (!comment.owner.equals(userId)) {
-    throw new ApiError(403, "You are not unauthorized to delete this comment");
+    throw new ApiError(403, "You are not Authorized to delete this comment");
   }
 
   await Promise.all([
