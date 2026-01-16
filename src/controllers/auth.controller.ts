@@ -110,7 +110,7 @@ export const signUpUser = asyncHandler(async (req: Request, res: Response) => {
 
 export const verifyAccount = asyncHandler(async (req: Request, res: Response) => {
   const { code, email } = req.body;
-  console.log(email, code);
+ 
 
   const user = await userModel.findOne({ email: email });
   console.log(user);

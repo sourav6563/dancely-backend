@@ -6,8 +6,6 @@ import { Request, Response } from "express";
 import { unlink } from "fs/promises";
 import { deleteOnCloudinary, uploadOnCloudinary } from "../utils/cloudinary";
 
-
-
 export const updateName = asyncHandler(async (req: Request, res: Response) => {
   const { name } = req.body;
 
@@ -164,20 +162,24 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const getWatchHistory = asyncHandler(async (req: Request, res: Response) => {
-  const myId = req.user?._id;
+  const { page = 1, limit = 10 } = req.query;
+  const userId = req.user?._id;
 
-  const userWithHistory = await userModel.aggregate([
+  const aggregate = userModel.aggregate([
     {
       $match: {
-        _id: myId,
+        _id: userId,
       },
+    },
+    {
+      $unwind: "$watchHistory",
     },
     {
       $lookup: {
         from: "videos",
         localField: "watchHistory",
         foreignField: "_id",
-        as: "watchHistory",
+        as: "video",
         pipeline: [
           {
             $lookup: {
@@ -206,19 +208,22 @@ export const getWatchHistory = asyncHandler(async (req: Request, res: Response) 
         ],
       },
     },
+    {
+      $unwind: "$video",
+    },
+    {
+      $replaceRoot: { newRoot: "$video" },
+    },
   ]);
 
-  // The aggregation pipeline returns an array, even if only one document is matched.
-  // We check if the array is empty, which means the user was not found.
-  if (!userWithHistory?.length) {
-    throw new ApiError(404, "User not found or watch history is empty");
-  }
+  const options = {
+    page: parseInt(page as string, 10),
+    limit: parseInt(limit as string, 10),
+  };
 
-  // Access the first (and only) element of the array to get the user document,
-  // then extract the watchHistory from it.
+  const watchHistory = await userModel.aggregatePaginate(aggregate, options);
+
   return res
     .status(200)
-    .json(
-      new apiResponse(200, "Watch history fetched successfully", userWithHistory[0].watchHistory),
-    );
+    .json(new apiResponse(200, "Watch history fetched successfully", watchHistory));
 });

@@ -352,7 +352,7 @@ export const deleteVideo = asyncHandler(async (req: Request, res: Response) => {
   try {
     await Video.findByIdAndDelete(videoId);
 
-    Promise.all([
+    await Promise.all([
       Like.deleteMany({ video: videoId }),
       Comment.deleteMany({ video: videoId }),
       userModel.updateMany({ watchHistory: videoId }, { $pull: { watchHistory: videoId } }),
