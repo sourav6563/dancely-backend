@@ -14,7 +14,7 @@ router.use(authenticate);
 
 router.route("/").post(validate(communityPostSchema, ValidationSource.BODY), createCommunityPost);
 
-router.route("user/:userId").get(getUserCommunityPosts);
+router.route("/user/:userId").get(getUserCommunityPosts);
 
 router
   .route("/:postId")
