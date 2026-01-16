@@ -229,6 +229,7 @@ export const updateComment = asyncHandler(async (req: Request, res: Response) =>
 
 export const deleteComment = asyncHandler(async (req: Request, res: Response) => {
   const { commentId } = req.params;
+  const userId = req.user?._id;
 
   const comment = await Comment.findById(commentId);
 
@@ -236,7 +237,7 @@ export const deleteComment = asyncHandler(async (req: Request, res: Response) =>
     throw new ApiError(404, "Invalid Id Comment not found");
   }
 
-  if (comment.owner.toString() !== req.user?._id.toString()) {
+  if (!comment.owner.equals(userId)) {
     throw new ApiError(403, "You are not unauthorized to delete this comment");
   }
 

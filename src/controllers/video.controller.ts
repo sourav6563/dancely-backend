@@ -54,17 +54,15 @@ export const uploadVideo = asyncHandler(async (req: Request, res: Response) => {
       throw new ApiError(400, "Thumbnail exceeds 5MB size limit");
     }
 
-    [videoUploadResult, thumbnailUploadResult] = await Promise.all([
-      uploadOnCloudinary(videoFile.path).catch((err) => {
-        logger.error("Cloudinary video upload failed:", err);
-        throw new ApiError(500, "Failed to upload video");
-      }),
+    videoUploadResult = await uploadOnCloudinary(videoFile.path).catch((err) => {
+      logger.error("Cloudinary video upload failed:", err);
+      throw new ApiError(500, "Failed to upload video");
+    });
 
-      uploadOnCloudinary(thumbnailFile.path).catch((err) => {
-        logger.error("Cloudinary thumbnail upload failed:", err);
-        throw new ApiError(500, "Failed to upload thumbnail");
-      }),
-    ]);
+    thumbnailUploadResult = await uploadOnCloudinary(thumbnailFile.path).catch((err) => {
+      logger.error("Cloudinary thumbnail upload failed:", err);
+      throw new ApiError(500, "Failed to upload thumbnail");
+    });
 
     if (!videoUploadResult?.url || !thumbnailUploadResult?.url) {
       throw new ApiError(500, "File upload failed");

@@ -15,6 +15,7 @@ import commentRouter from "./routes/comment.route";
 import playlistRouter from "./routes/playlist.route";
 import dashboardRouter from "./routes/dashboard.route";
 import communityPostRouter from "./routes/communityPost.route";
+import followerRouter from "./routes/follower.route";
 const app = express();
 
 app.use(
@@ -56,6 +57,7 @@ app.use("/api/v1/comment", commentRouter);
 app.use("/api/v1/playlist", playlistRouter);
 app.use("/api/v1/communitypost", communityPostRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
+app.use("/api/v1/follower", followerRouter);
 
 app.use(errorHandler);
 export { app };
