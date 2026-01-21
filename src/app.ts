@@ -18,7 +18,8 @@ import communityPostRouter from "./routes/communityPost.route";
 import followerRouter from "./routes/follower.route";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
-import mongoSanitize from "express-mongo-sanitize";
+import swaggerRouter from "./swagger";
+
 const app = express();
 
 const limiter = rateLimit({
@@ -28,7 +29,6 @@ const limiter = rateLimit({
 });
 app.use("/api", limiter);
 app.use(helmet());
-app.use(mongoSanitize());
 
 app.use(
   cors({
@@ -80,6 +80,8 @@ app.use("/api/v1/playlist", playlistRouter);
 app.use("/api/v1/communitypost", communityPostRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
 app.use("/api/v1/follower", followerRouter);
+
+app.use("/api-docs", swaggerRouter);
 
 app.use(errorHandler);
 export { app };

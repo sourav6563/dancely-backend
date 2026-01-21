@@ -24,6 +24,46 @@ export const createPlaylist = asyncHandler(async (req: Request, res: Response) =
   return res.status(201).json(new apiResponse(201, "Playlist created successfully", playlist));
 });
 
+export const getMyPlaylists = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id;
+  const { page = 1, limit = 10 } = req.query;
+
+  if (!userId) {
+    throw new ApiError(401, "Unauthorized request");
+  }
+
+  const aggregate = Playlist.aggregate([
+    {
+      $match: {
+        owner: userId, // Only MY playlists
+      },
+    },
+    {
+      $sort: {
+        createdAt: -1, // Newest first
+      },
+    },
+    {
+      $project: {
+        name: 1,
+        description: 1,
+        totalVideos: { $size: "$videos" },
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    },
+  ]);
+
+  const options = {
+    page: parseInt(page as string, 10),
+    limit: parseInt(limit as string, 10),
+  };
+
+  const playlists = await Playlist.aggregatePaginate(aggregate, options);
+
+  return res.status(200).json(new apiResponse(200, "playlists fetched successfully", playlists));
+});
+
 export const updatePlaylist = asyncHandler(async (req: Request, res: Response) => {
   const { playlistId } = req.params;
   const { name, description } = req.body;
@@ -227,21 +267,18 @@ export const getUserPlaylists = asyncHandler(async (req: Request, res: Response)
         localField: "videos",
         foreignField: "_id",
         as: "videos",
-        pipeline: [
-          { $match: { isPublished: true } },
-          { $project: { thumbnail: 1 } }, 
-        ],
+        pipeline: [{ $match: { isPublished: true } }, { $project: { thumbnail: 1 } }],
       },
     },
     {
       $addFields: {
-        totalVideos: { $size: "$videos" }, 
+        totalVideos: { $size: "$videos" },
         playlistThumbnail: { $first: "$videos.thumbnail" },
       },
     },
     {
       $project: {
-        videos: 0, 
+        videos: 0,
       },
     },
   ]);

@@ -5,13 +5,14 @@ import { apiResponse } from "../utils/apiResponse";
 import { Request, Response } from "express";
 import { unlink } from "fs/promises";
 import { deleteOnCloudinary, uploadOnCloudinary } from "../utils/cloudinary";
+import { ALLOWED_IMAGE_TYPES, USER_SENSITIVE_FIELDS } from "../constants";
 
 export const updateName = asyncHandler(async (req: Request, res: Response) => {
   const { name } = req.body;
 
   const user = await userModel
     .findByIdAndUpdate(req.user?._id, { $set: { name: name } }, { new: true })
-    .select("-password -refreshToken");
+    .select(USER_SENSITIVE_FIELDS);
 
   if (!user) {
     throw new ApiError(404, "Name update failed User not found");
@@ -33,7 +34,7 @@ export const updateEmail = asyncHandler(async (req: Request, res: Response) => {
 
   const user = await userModel
     .findByIdAndUpdate(req.user?._id, { $set: { email: email } }, { new: true })
-    .select("-password -refreshToken");
+    .select(USER_SENSITIVE_FIELDS);
 
   if (!user) {
     throw new ApiError(404, "Email update failed User not found");
@@ -52,9 +53,9 @@ export const updateProfileImage = asyncHandler(async (req: Request, res: Respons
   let profileImage = null;
 
   try {
-    const allowedImageTypes = ["image/jpeg", "image/png"];
+    // const allowedImageTypes = ["image/jpeg", "image/png"];
 
-    if (!allowedImageTypes.includes(req.file!.mimetype)) {
+    if (!ALLOWED_IMAGE_TYPES.includes(req.file!.mimetype)) {
       throw new ApiError(400, "Invalid profileImage file");
     }
 
@@ -66,7 +67,7 @@ export const updateProfileImage = asyncHandler(async (req: Request, res: Respons
 
     const user = await userModel
       .findByIdAndUpdate(req.user?._id, { $set: { profileImage: profileImage.url } }, { new: true })
-      .select("-password -refreshToken");
+      .select(USER_SENSITIVE_FIELDS);
 
     if (!user) {
       throw new ApiError(404, "User not found");
@@ -140,14 +141,15 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
     // 5. remove heavy arrays if not needed
     {
       $project: {
-        password: 0,
-        refreshToken: 0,
-        emailVerificationCode: 0,
-        emailVerificationExpires: 0,
-        passwordResetCode: 0,
-        passwordResetExpires: 0,
-        followers: 0,
-        following: 0,
+        _id: 1,
+        username: 1,
+        name: 1,
+        profileImage: 1,
+        isVerified: 1,
+        followersCount: 1,
+        followingCount: 1,
+        isFollowedByMe: 1,
+        createdAt: 1,
       },
     },
   ]);
@@ -160,7 +162,6 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
     .status(200)
     .json(new apiResponse(200, "User profile fetched successfully", profile[0]));
 });
-
 export const getWatchHistory = asyncHandler(async (req: Request, res: Response) => {
   const { page = 1, limit = 10 } = req.query;
   const userId = req.user?._id;
@@ -182,6 +183,9 @@ export const getWatchHistory = asyncHandler(async (req: Request, res: Response) 
         as: "video",
         pipeline: [
           {
+            $match: { isPublished: true },
+          },
+          {
             $lookup: {
               from: "users",
               localField: "owner",
@@ -200,9 +204,7 @@ export const getWatchHistory = asyncHandler(async (req: Request, res: Response) 
           },
           {
             $addFields: {
-              owner: {
-                $first: "$owner",
-              },
+              owner: { $first: "$owner" },
             },
           },
         ],
@@ -213,6 +215,19 @@ export const getWatchHistory = asyncHandler(async (req: Request, res: Response) 
     },
     {
       $replaceRoot: { newRoot: "$video" },
+    },
+    {
+      $project: {
+        _id: 1,
+        owner: 1,
+        title: 1,
+        description: 1,
+        views: 1,
+        duration: 1,
+        createdAt: 1,
+        videoFile: "$videoFile.url",
+        thumbnail: "$thumbnail.url",
+      },
     },
   ]);
 

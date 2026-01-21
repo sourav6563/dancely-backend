@@ -23,10 +23,9 @@ router.route("/email").patch(validate(updateEmailSchema, ValidationSource.BODY),
 
 router.route("/profileimage").patch(upload.single("profileImage"), updateProfileImage);
 
-router
-  .route("/u/:username")
-  .get(validate(userProfileSchema, ValidationSource.PARAM), getUserProfile);
-
 router.route("/history").get(authenticate, getWatchHistory);
+router
+  .route("/:username")
+  .get(validate(userProfileSchema, ValidationSource.PARAM), getUserProfile);
 
 export default router;

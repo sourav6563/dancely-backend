@@ -6,6 +6,7 @@ import {
   addVideoToPlaylist,
   createPlaylist,
   deletePlaylist,
+  getMyPlaylists,
   getPlaylistById,
   getUserPlaylists,
   removeVideoFromPlaylist,
@@ -13,19 +14,24 @@ import {
 } from "../controllers/playlist.controller";
 
 const router = Router();
+
 router.use(authenticate);
 
+router.route("/").post(validate(PlaylistSchema, ValidationSource.BODY), createPlaylist);
+
+router.route("/me").get(getMyPlaylists);
+
+router.route("/user/:userId").get(getUserPlaylists);
+
 router
-  .post("/", validate(PlaylistSchema, ValidationSource.BODY), createPlaylist)
-  .get("/:playlistId", getPlaylistById)
-  .patch("/:playlistId", validate(PlaylistSchema, ValidationSource.BODY), updatePlaylist)
-  .delete("/:playlistId", deletePlaylist);
+  .route("/:playlistId")
+  .get(getPlaylistById)
+  .patch(validate(PlaylistSchema, ValidationSource.BODY), updatePlaylist)
+  .delete(deletePlaylist);
 
-// Video management in playlist
-router.post("/:playlistId/videos/:videoId", addVideoToPlaylist);
-router.delete("/:playlistId/videos/:videoId", removeVideoFromPlaylist);
-
-// User playlists
-router.get("/user/:userId", getUserPlaylists);
+router
+  .route("/:playlistId/videos/:videoId")
+  .post(addVideoToPlaylist)
+  .delete(removeVideoFromPlaylist);
 
 export default router;

@@ -13,6 +13,12 @@ import { Comment } from "../models/comment.model";
 import { userModel } from "../models/user.model";
 import { Types } from "mongoose";
 import { Playlist } from "../models/playlist.model";
+import {
+  ALLOWED_IMAGE_TYPES,
+  ALLOWED_VIDEO_TYPES,
+  MAX_THUMBNAIL_SIZE,
+  MAX_VIDEO_SIZE,
+} from "../constants";
 
 export const uploadVideo = asyncHandler(async (req: Request, res: Response) => {
   const owner = req.user?._id;
@@ -29,31 +35,28 @@ export const uploadVideo = asyncHandler(async (req: Request, res: Response) => {
   if (!thumbnailFile?.path) {
     throw new ApiError(400, "Thumbnail file is required");
   }
+
   let videoUploadResult = null;
   let thumbnailUploadResult = null;
 
   try {
-    const allowedVideoTypes = ["video/mp4", "video/mpeg"];
-    const allowedImageTypes = ["image/jpeg", "image/png"];
-    const maxVideoSize = 100 * 1024 * 1024; // 100MB
-    const maxThumbnailSize = 5 * 1024 * 1024; // 5MB
-
-    if (!allowedVideoTypes.includes(videoFile.mimetype)) {
+    if (!ALLOWED_VIDEO_TYPES.includes(videoFile.mimetype)) {
       throw new ApiError(400, "Invalid video file type. Only mp4 or mpeg allowed.");
     }
 
-    if (!allowedImageTypes.includes(thumbnailFile.mimetype)) {
+    if (!ALLOWED_IMAGE_TYPES.includes(thumbnailFile.mimetype)) {
       throw new ApiError(400, "Invalid thumbnail type. Only jpeg or png allowed.");
     }
 
-    if (videoFile.size > maxVideoSize) {
+    if (videoFile.size > MAX_VIDEO_SIZE) {
       throw new ApiError(400, "Video file exceeds 100MB size limit");
     }
 
-    if (thumbnailFile.size > maxThumbnailSize) {
+    if (thumbnailFile.size > MAX_THUMBNAIL_SIZE) {
       throw new ApiError(400, "Thumbnail exceeds 5MB size limit");
     }
 
+    // 2. Upload to Cloudinary
     videoUploadResult = await uploadOnCloudinary(videoFile.path).catch((err) => {
       logger.error("Cloudinary video upload failed:", err);
       throw new ApiError(500, "Failed to upload video");
@@ -67,10 +70,12 @@ export const uploadVideo = asyncHandler(async (req: Request, res: Response) => {
     if (!videoUploadResult?.url || !thumbnailUploadResult?.url) {
       throw new ApiError(500, "File upload failed");
     }
+
     logger.info(
       `User ${owner} uploaded files: video=${videoUploadResult.url}, thumbnail=${thumbnailUploadResult.url}`,
     );
 
+    // 3. Create Database Entry
     const newVideo = await Video.create({
       owner,
       videoFile: {
@@ -83,22 +88,66 @@ export const uploadVideo = asyncHandler(async (req: Request, res: Response) => {
       },
       title,
       description,
-      duration: videoUploadResult.duration, // Auto-from Cloudinary
+      duration: videoUploadResult.duration,
       isPublished: false,
     });
-    const createdVideo = await Video.findById(newVideo._id).populate(
-      "owner",
-      "username name profileImage",
-    );
 
-    if (!createdVideo) {
-      throw new ApiError(500, "Video saved but failed to retrieve");
+    // 4. Retrieve Clean Data (Using Aggregation Pipeline)
+    const createdVideo = await Video.aggregate([
+      {
+        $match: {
+          _id: newVideo._id,
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "owner",
+          foreignField: "_id",
+          as: "owner",
+          pipeline: [
+            {
+              $project: {
+                username: 1,
+                name: 1,
+                profileImage: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          owner: { $first: "$owner" },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          owner: 1,
+          title: 1,
+          description: 1,
+          duration: 1,
+          views: 1,
+          isPublished: 1,
+          createdAt: 1,
+          videoFile: "$videoFile.url",
+          thumbnail: "$thumbnail.url",
+        },
+      },
+    ]);
+
+    if (!createdVideo.length) {
+      throw new ApiError(500, "Video created but failed to retrieve");
     }
 
-    return res.status(201).json(new apiResponse(201, "Video uploaded successfully", createdVideo));
+    return res
+      .status(201)
+      .json(new apiResponse(201, "Video uploaded successfully", createdVideo[0]));
   } catch (error: any) {
     logger.error("uploadVideo error:", error.message);
 
+    // Rollback: Delete from Cloudinary if DB save failed
     if (videoUploadResult?.public_id) {
       await deleteOnCloudinary(videoUploadResult.public_id).catch(() => {});
     }
@@ -108,6 +157,7 @@ export const uploadVideo = asyncHandler(async (req: Request, res: Response) => {
     }
     throw error;
   } finally {
+    // Cleanup: Delete local temp files
     if (videoFile?.path) await unlink(videoFile.path).catch(() => {});
     if (thumbnailFile?.path) await unlink(thumbnailFile.path).catch(() => {});
   }
@@ -145,6 +195,21 @@ export const getAllVideos = asyncHandler(async (req: Request, res: Response) => 
     },
     { $addFields: { owner: { $first: "$owner" } } },
     { $sort: sortOptions },
+
+    {
+      $project: {
+        _id: 1,
+        owner: 1,
+        title: 1,
+        description: 1,
+        views: 1,
+        duration: 1,
+        createdAt: 1,
+        isPublished: 1,
+        videoFile: "$videoFile.url",
+        thumbnail: "$thumbnail.url",
+      },
+    },
   ]);
 
   const results = await Video.aggregatePaginate(aggregate, {
@@ -155,6 +220,50 @@ export const getAllVideos = asyncHandler(async (req: Request, res: Response) => 
   return res.status(200).json(new apiResponse(200, "Videos fetched", results));
 });
 
+export const getMyVideos = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id;
+  const { page = 1, limit = 10 } = req.query;
+
+  if (!userId) {
+    throw new ApiError(401, "Unauthorized request");
+  }
+
+  const aggregate = Video.aggregate([
+    {
+      $match: {
+        owner: userId,
+      },
+    },
+    {
+      $sort: {
+        createdAt: -1,
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        title: 1,
+        description: 1,
+        views: 1,
+        isPublished: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        videoFile: "$videoFile.url",
+        thumbnail: "$thumbnail.url",
+      },
+    },
+  ]);
+
+  const options = {
+    page: parseInt(page as string, 10),
+    limit: parseInt(limit as string, 10),
+  };
+
+  const videos = await Video.aggregatePaginate(aggregate, options);
+
+  return res.status(200).json(new apiResponse(200, "videos fetched successfully", videos));
+});
+
 export const getVideoById = asyncHandler(async (req: Request, res: Response) => {
   const { videoId } = req.params;
 
@@ -163,6 +272,7 @@ export const getVideoById = asyncHandler(async (req: Request, res: Response) => 
   if (!video) {
     throw new ApiError(404, "Invalid Id Video not found");
   }
+
   const userId = req.user?._id;
   const isOwner = userId && video.owner.toString() === userId.toString();
 
@@ -186,7 +296,6 @@ export const getVideoById = asyncHandler(async (req: Request, res: Response) => 
         _id: new Types.ObjectId(videoId),
       },
     },
-
     {
       $lookup: {
         from: "users",
@@ -215,7 +324,6 @@ export const getVideoById = asyncHandler(async (req: Request, res: Response) => 
         as: "likes",
       },
     },
-
     {
       $lookup: {
         from: "follows",
@@ -251,11 +359,20 @@ export const getVideoById = asyncHandler(async (req: Request, res: Response) => 
         },
       },
     },
-
     {
       $project: {
-        likes: 0,
-        followers: 0,
+        _id: 1,
+        owner: 1,
+        title: 1,
+        description: 1,
+        views: 1,
+        duration: 1,
+        createdAt: 1,
+        isPublished: 1,
+        likesCount: 1,
+        isLiked: 1,
+        videoFile: "$videoFile.url",
+        thumbnail: "$thumbnail.url",
       },
     },
   ]);
@@ -281,7 +398,7 @@ export const updateVideoDetails = asyncHandler(async (req: Request, res: Respons
     throw new ApiError(403, "You can only update your own videos");
   }
 
-  const updatedVideo = await Video.findByIdAndUpdate(
+  await Video.findByIdAndUpdate(
     videoId,
     {
       $set: {
@@ -293,13 +410,121 @@ export const updateVideoDetails = asyncHandler(async (req: Request, res: Respons
       new: true,
       runValidators: true,
     },
-  ).populate("owner", "username name profileImage");
+  );
 
-  if (!updatedVideo) {
+  const updatedVideo = await Video.aggregate([
+    {
+      $match: {
+        _id: video._id,
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "owner",
+        pipeline: [
+          {
+            $project: {
+              username: 1,
+              name: 1,
+              profileImage: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        owner: { $first: "$owner" },
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        owner: 1,
+        title: 1,
+        description: 1,
+        views: 1,
+        duration: 1,
+        isPublished: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        videoFile: "$videoFile.url",
+        thumbnail: "$thumbnail.url",
+      },
+    },
+  ]);
+
+  if (!updatedVideo.length) {
     throw new ApiError(500, "Failed to update video details");
   }
 
-  return res.status(200).json(new apiResponse(200, "Video updated successfully", updatedVideo));
+  return res.status(200).json(new apiResponse(200, "Video updated successfully", updatedVideo[0]));
+});
+
+export const updateVideoThumbnail = asyncHandler(async (req: Request, res: Response) => {
+  const thumbnailLocalPath = req.file?.path;
+
+  if (!thumbnailLocalPath) {
+    throw new ApiError(400, "Thumbnail file is required");
+  }
+
+  let thumbnail = null;
+
+  try {
+    const { videoId } = req.params;
+    const video = await Video.findById(videoId);
+
+    if (!video) {
+      throw new ApiError(404, "Video not found");
+    }
+
+    if (!video.owner.equals(req.user?._id)) {
+      throw new ApiError(403, "You can only update your own videos");
+    }
+
+    thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
+
+    if (!thumbnail?.url) {
+      throw new ApiError(500, "Thumbnail upload failed");
+    }
+
+    const updatedVideo = await Video.findByIdAndUpdate(
+      videoId,
+      {
+        $set: {
+          thumbnail: {
+            url: thumbnail.url,
+            public_id: thumbnail.public_id,
+          },
+        },
+      },
+      { new: true },
+    )
+      .populate("owner", "username name profileImage")
+      .select("-__v -videoFile.public_id -thumbnail.public_id");
+
+    if (!updatedVideo) {
+      throw new ApiError(500, "Failed to update video thumbnail");
+    }
+
+    if (video.thumbnail?.public_id) {
+      deleteOnCloudinary(video.thumbnail.public_id).catch(() => {});
+    }
+
+    return res
+      .status(200)
+      .json(new apiResponse(200, "Video thumbnail updated successfully", updatedVideo));
+  } catch (error) {
+    if (thumbnail?.public_id) {
+      await deleteOnCloudinary(thumbnail.public_id).catch(() => {});
+    }
+    throw error;
+  } finally {
+    if (thumbnailLocalPath) await unlink(thumbnailLocalPath).catch(() => {});
+  }
 });
 
 export const togglePublishStatus = asyncHandler(async (req, res) => {

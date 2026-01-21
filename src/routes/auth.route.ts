@@ -7,18 +7,18 @@ import {
   resetPassword,
   signUpUser,
   verifyAccount,
-  getUserInfo,
   changePassword,
-  isUsernameAvailable,
+  checkUsername,
+  getMe,
 } from "../controllers/auth.controller";
 import {
-  userNameAvailabilitySchema,
   forgotPasswordSchema,
   loginSchema,
   resetPasswordSchema,
   signUpSchema,
   updatePasswordSchema,
   verifyAccountSchema,
+  checkUsernameSchema,
 } from "../validators/auth.validator";
 import { validate, ValidationSource } from "../middlewares/validate.middleware";
 import { authenticate } from "../middlewares/authenticate.middleware";
@@ -27,8 +27,8 @@ import { isGuest } from "../middlewares/guest.middleware";
 const router = Router();
 //public route
 router
-  .route("/username-availability")
-  .get(validate(userNameAvailabilitySchema, ValidationSource.QUERY), isUsernameAvailable);
+  .route("/check-username")
+  .get(validate(checkUsernameSchema, ValidationSource.QUERY), checkUsername);
 
 router.route("/signup").post(isGuest, validate(signUpSchema, ValidationSource.BODY), signUpUser);
 
@@ -42,15 +42,15 @@ router.route("/refresh-token").post(refreshAccessToken);
 
 router
   .route("/forgot-password")
-  .post(validate(forgotPasswordSchema, ValidationSource.BODY), forgotPassword);
+  .post(isGuest, validate(forgotPasswordSchema, ValidationSource.BODY), forgotPassword);
 
 router
   .route("/reset-password")
-  .post(validate(resetPasswordSchema, ValidationSource.BODY), resetPassword);
+  .post(isGuest, validate(resetPasswordSchema, ValidationSource.BODY), resetPassword);
 
 //private route
 router.use(authenticate);
-router.route("/info").get(getUserInfo);
+router.route("/me").get(getMe);
 
 router
   .route("/change-password")

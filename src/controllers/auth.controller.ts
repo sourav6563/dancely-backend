@@ -9,7 +9,14 @@ import crypto from "crypto";
 import { Request, Response } from "express";
 import { env } from "../env";
 import jwt from "jsonwebtoken";
-import { COOKIE_OPTIONS, CookieNames, EmailTypes } from "../constants";
+import {
+  COOKIE_OPTIONS,
+  CookieNames,
+  EMAIL_VERIFICATION_EXPIRY_MS,
+  EmailTypes,
+  PASSWORD_RESET_EXPIRY_MS,
+  USER_SENSITIVE_FIELDS,
+} from "../constants";
 
 export const generateToken = async (userId: string | Types.ObjectId) => {
   try {
@@ -29,7 +36,7 @@ export const generateToken = async (userId: string | Types.ObjectId) => {
   }
 };
 
-export const isUsernameAvailable = asyncHandler(async (req: Request, res: Response) => {
+export const checkUsername = asyncHandler(async (req: Request, res: Response) => {
   const { username } = req.query;
 
   const existingVerifiedUser = await userModel.findOne({
@@ -71,7 +78,7 @@ export const signUpUser = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const verifyCode = crypto.randomInt(100000, 1000000).toString();
-  const verifyExpiry = new Date(Date.now() + 15 * 60 * 1000);
+  const verifyExpiry = new Date(Date.now() + EMAIL_VERIFICATION_EXPIRY_MS);
 
   const defaultImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(
     name,
@@ -161,7 +168,7 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const { accessToken, refreshToken } = await generateToken(user._id);
-  const loggedInUser = await userModel.findById(user._id).select("-password -refreshToken");
+  const loggedInUser = await userModel.findById(user._id).select(USER_SENSITIVE_FIELDS);
   if (!loggedInUser) {
     throw new ApiError(500, "something went wrong while logging in user");
   }
@@ -175,7 +182,7 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
 
 export const refreshAccessToken = asyncHandler(async (req: Request, res: Response) => {
   const incomingRefreshToken =
-    req.cookies?.refreshToken || req.header("authorization")?.replace("Bearer ", "");
+    req.cookies?.[CookieNames.REFRESH_TOKEN] || req.header("authorization")?.replace("Bearer ", "");
 
   if (!incomingRefreshToken) {
     throw new ApiError(401, "UNAUTHORIZED");
@@ -229,7 +236,7 @@ export const logoutUser = asyncHandler(async (req: Request, res: Response) => {
     .json(new apiResponse(200, "User logged out successfully"));
 });
 
-export const getUserInfo = asyncHandler(async (req, res) => {
+export const getMe = asyncHandler(async (req, res) => {
   return res.status(200).json(new apiResponse(200, "User details fetched successfully", req.user));
 });
 
@@ -261,7 +268,7 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
   }
 
   const resetCode = crypto.randomInt(100000, 1000000).toString();
-  const resetExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+  const resetExpiry = new Date(Date.now() + PASSWORD_RESET_EXPIRY_MS); // 15 minutes
 
   user.passwordResetCode = resetCode;
   user.passwordResetExpires = resetExpiry;

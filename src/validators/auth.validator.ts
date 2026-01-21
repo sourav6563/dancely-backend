@@ -64,7 +64,7 @@ export const resetPasswordSchema = z.object({
       "Password must contain uppercase, lowercase, and a number",
     ),
 });
-export const userNameAvailabilitySchema = z.object({
+export const checkUsernameSchema = z.object({
   username: z
     .string()
     .trim()

@@ -24,7 +24,7 @@ router
   .post(authenticate, validate(commentContentSchema, ValidationSource.BODY), addPostComment);
 
 router
-  .route("/c/:commentId")
+  .route("/:commentId")
   .patch(authenticate, validate(commentContentSchema, ValidationSource.BODY), updateComment)
   .delete(authenticate, deleteComment);
 

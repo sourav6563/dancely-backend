@@ -6,7 +6,6 @@ import { Request, Response } from "express";
 // import { logger } from "../utils/logger";
 import { Follow } from "../models/follow.model";
 import { Like } from "../models/like.model";
-import { Playlist } from "../models/playlist.model";
 
 export const getDashboardStats = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?._id;
@@ -76,94 +75,6 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
   };
 
   return res.status(200).json(new apiResponse(200, "Dashboard stats fetched successfully", stats));
-});
-
-export const getDashboardVideos = asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.user?._id;
-  const { page = 1, limit = 10 } = req.query;
-
-  if (!userId) {
-    throw new ApiError(401, "Unauthorized request");
-  }
-
-  const aggregate = Video.aggregate([
-    {
-      $match: {
-        owner: userId,
-      },
-    },
-    {
-      $sort: {
-        createdAt: -1, // Newest first
-      },
-    },
-
-    {
-      $project: {
-        videoFile: 1,
-        thumbnail: 1,
-        title: 1,
-        description: 1,
-        views: 1,
-        isPublished: 1,
-        createdAt: 1,
-        updatedAt: 1,
-      },
-    },
-  ]);
-
-  const options = {
-    page: parseInt(page as string, 10),
-    limit: parseInt(limit as string, 10),
-  };
-
-  const videos = await Video.aggregatePaginate(aggregate, options);
-
-  return res
-    .status(200)
-    .json(new apiResponse(200, "Dashboard videos fetched successfully", videos));
-});
-
-export const getDashboardPlaylists = asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.user?._id;
-  const { page = 1, limit = 10 } = req.query;
-
-  if (!userId) {
-    throw new ApiError(401, "Unauthorized request");
-  }
-
-  const aggregate = Playlist.aggregate([
-    {
-      $match: {
-        owner: userId, // Only MY playlists
-      },
-    },
-    {
-      $sort: {
-        createdAt: -1, // Newest first
-      },
-    },
-    {
-      $project: {
-        name: 1,
-        description: 1,
-        totalVideos: { $size: "$videos" },
-        createdAt: 1,
-        updatedAt: 1,
-      },
-    },
-  ]);
-
-  const options = {
-    page: parseInt(page as string, 10),
-    limit: parseInt(limit as string, 10),
-  };
-
-  const playlists = await Playlist.aggregatePaginate(aggregate, options);
-
-  return res
-    .status(200)
-    .json(new apiResponse(200, "Dashboard playlists fetched successfully", playlists));
 });
 
 // export const getVideos = asyncHandler(async (req: Request, res: Response) => {
