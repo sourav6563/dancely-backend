@@ -283,10 +283,6 @@ export const getUserPlaylists = asyncHandler(async (req: Request, res: Response)
     },
   ]);
 
-  if (!playlists) {
-    throw new ApiError(404, "Playlists not found");
-  }
-
   return res
     .status(200)
     .json(new apiResponse(200, "User playlists fetched successfully", playlists));

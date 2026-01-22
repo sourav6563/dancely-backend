@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
-// import { env } from "./env";
+import { env } from "./env";
 
 const router = Router();
 
@@ -15,11 +15,10 @@ const options: swaggerJSDoc.Options = {
       description: "API documentation for Video Streaming API",
     },
 
-    servers: [],
-
-    security: [
+    servers: [
       {
-        cookieAuth: [],
+        url: `http://localhost:${env.PORT}/api/v1`,
+        description: "Development Server",
       },
     ],
 

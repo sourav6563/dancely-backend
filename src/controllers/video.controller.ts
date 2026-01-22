@@ -270,7 +270,7 @@ export const getVideoById = asyncHandler(async (req: Request, res: Response) => 
   const video = await Video.findById(videoId);
 
   if (!video) {
-    throw new ApiError(404, "Invalid Id Video not found");
+    throw new ApiError(404, "Video not found");
   }
 
   const userId = req.user?._id;
@@ -392,7 +392,7 @@ export const updateVideoDetails = asyncHandler(async (req: Request, res: Respons
   const { title, description } = req.body;
 
   const video = await Video.findById(videoId);
-  if (!video) throw new ApiError(404, "Invalid Id Video not found");
+  if (!video) throw new ApiError(404, "Video not found");
 
   if (!video.owner.equals(ownerId)) {
     throw new ApiError(403, "You can only update your own videos");
@@ -533,7 +533,7 @@ export const togglePublishStatus = asyncHandler(async (req, res) => {
 
   const video = await Video.findById(videoId);
   if (!video) {
-    throw new ApiError(404, "Invalid Id Video not found");
+    throw new ApiError(404, "Video not found");
   }
 
   if (!video.owner.equals(userId)) {
@@ -562,7 +562,7 @@ export const deleteVideo = asyncHandler(async (req: Request, res: Response) => {
   const video = await Video.findById(videoId);
 
   if (!video) {
-    throw new ApiError(404, " Invalid Id Video not found");
+    throw new ApiError(404, "Video not found");
   }
 
   if (video.owner.toString() !== userId?.toString()) {

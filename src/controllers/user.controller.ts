@@ -9,9 +9,10 @@ import { ALLOWED_IMAGE_TYPES, USER_SENSITIVE_FIELDS } from "../constants";
 
 export const updateName = asyncHandler(async (req: Request, res: Response) => {
   const { name } = req.body;
+  const userId = req.user?._id;
 
   const user = await userModel
-    .findByIdAndUpdate(req.user?._id, { $set: { name: name } }, { new: true })
+    .findByIdAndUpdate(userId, { $set: { name } }, { new: true })
     .select(USER_SENSITIVE_FIELDS);
 
   if (!user) {
@@ -24,7 +25,7 @@ export const updateEmail = asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body;
 
   const existingUser = await userModel.findOne({
-    email: email,
+    email,
     _id: { $ne: req.user?._id },
   });
 
@@ -33,7 +34,7 @@ export const updateEmail = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const user = await userModel
-    .findByIdAndUpdate(req.user?._id, { $set: { email: email } }, { new: true })
+    .findByIdAndUpdate(req.user?._id, { $set: { email } }, { new: true })
     .select(USER_SENSITIVE_FIELDS);
 
   if (!user) {
@@ -53,8 +54,6 @@ export const updateProfileImage = asyncHandler(async (req: Request, res: Respons
   let profileImage = null;
 
   try {
-    // const allowedImageTypes = ["image/jpeg", "image/png"];
-
     if (!ALLOWED_IMAGE_TYPES.includes(req.file!.mimetype)) {
       throw new ApiError(400, "Invalid profileImage file");
     }
@@ -89,10 +88,6 @@ export const updateProfileImage = asyncHandler(async (req: Request, res: Respons
 export const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
   const { username } = req.params;
   const myId = req.user?._id;
-
-  if (!username?.trim()) {
-    throw new ApiError(400, "username is required");
-  }
 
   const profile = await userModel.aggregate([
     // 1. find the user
@@ -162,6 +157,7 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
     .status(200)
     .json(new apiResponse(200, "User profile fetched successfully", profile[0]));
 });
+
 export const getWatchHistory = asyncHandler(async (req: Request, res: Response) => {
   const { page = 1, limit = 10 } = req.query;
   const userId = req.user?._id;

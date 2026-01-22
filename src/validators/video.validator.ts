@@ -24,4 +24,3 @@ export const videoUpdateDetailsSchema = z.object({
   title: z.string().min(1, "Title is required").trim(),
   description: z.string().min(1, "Description is required").trim(),
 });
-export type VideoUpdateDetails = z.infer<typeof videoUpdateDetailsSchema>;

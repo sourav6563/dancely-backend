@@ -264,7 +264,7 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
   const user = await userModel.findOne({ email });
 
   if (!user || !user.isVerified) {
-    throw new ApiError(400, "User not found");
+    throw new ApiError(404, "User not found");
   }
 
   const resetCode = crypto.randomInt(100000, 1000000).toString();
