@@ -248,9 +248,9 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
     throw new ApiError(404, "update password failed User not found");
   }
 
-  const ispasswordValidated = await user?.isPasswordCorrect(oldPassword);
+  const isPasswordValidated = await user.isPasswordCorrect(oldPassword);
 
-  if (!ispasswordValidated) {
+  if (!isPasswordValidated) {
     throw new ApiError(401, "old password is incorrect");
   }
   user.password = newPassword;

@@ -23,7 +23,7 @@ export const signUpSchema = z.object({
 export const loginSchema = z.object({
   identifier: z.string().trim().min(1, "Email or username is required").toLowerCase(),
 
-  password: z.string().trim().min(1, "Password is required"),
+  password: z.string().min(1, "Password is required"),
 });
 
 export const verifyAccountSchema = z.object({
@@ -33,13 +33,7 @@ export const verifyAccountSchema = z.object({
 });
 
 export const updatePasswordSchema = z.object({
-  oldPassword: z
-    .string()
-    .min(6, "Password must be at least 6 characters")
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/,
-      "Password must contain uppercase, lowercase, and a number",
-    ),
+  oldPassword: z.string().min(1, "Old password is required"),
   newPassword: z
     .string()
     .min(6, "Password must be at least 6 characters")

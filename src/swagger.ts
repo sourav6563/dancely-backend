@@ -1,24 +1,28 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 import { Router, Request, Response } from "express";
 import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
-import { env } from "./env";
+// import { env } from "./env";
+
 const router = Router();
 
 const options: swaggerJSDoc.Options = {
   swaggerDefinition: {
     openapi: "3.0.0",
+
     info: {
       title: "Video Streaming API",
       version: "1.0.0",
       description: "API documentation for Video Streaming API",
     },
-    servers: [
+
+    servers: [],
+
+    security: [
       {
-        url: `http://localhost:${env.PORT}/api/v1`,
-        description: "Development server",
+        cookieAuth: [],
       },
     ],
+
     components: {
       securitySchemes: {
         cookieAuth: {
@@ -28,50 +32,27 @@ const options: swaggerJSDoc.Options = {
         },
       },
     },
-    tags: [
-      {
-        name: "auth",
-        description: "Authentication related endpoints",
-      },
-      {
-        name: "user",
-        description: "User related endpoints",
-      },
-      {
-        name: "video",
-        description: "Video related endpoints",
-      },
-      {
-        name: "like",
-        description: "Like related endpoints",
-      },
-      {
-        name: "comment",
-        description: "Comment related endpoints",
-      },
-      {
-        name: "playlist",
-        description: "Playlist related endpoints",
-      },
 
-      {
-        name: "follower",
-        description: "Follower related endpoints",
-      },
-      {
-        name: "dashboard",
-        description: "Dashboard related endpoints",
-      },
+    tags: [
+      { name: "Auth", description: "Authentication related endpoints" },
+      { name: "User", description: "User related endpoints" },
+      { name: "Video", description: "Video related endpoints" },
+      { name: "Like", description: "Like related endpoints" },
+      { name: "Comment", description: "Comment related endpoints" },
+      { name: "Playlist", description: "Playlist related endpoints" },
+      { name: "Follower", description: "Follower related endpoints" },
+      { name: "Dashboard", description: "Dashboard related endpoints" },
+      { name: "Health", description: "Health check endpoints" },
     ],
   },
+
   apis: ["./src/routes/*.ts"],
 };
 
 const swaggerSpec = swaggerJSDoc(options);
 
 router.get("/json", (_req: Request, res: Response) => {
-  res.setHeader("Content-Type", "application/json");
-  res.send(swaggerSpec);
+  res.json(swaggerSpec);
 });
 
 router.use("/", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
