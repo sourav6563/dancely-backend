@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Schema, model, Types, Model } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt, { SignOptions } from "jsonwebtoken";
 import { env } from "../env";
+import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
-export interface User {
+export interface IUser {
   _id: Types.ObjectId;
   username: string;
   email: string;
@@ -19,17 +21,18 @@ export interface User {
   passwordResetExpires?: Date;
 }
 
-export interface UserMethods {
+export interface IUserMethods {
   isPasswordCorrect(password: string): Promise<boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): string;
 }
 
 // Create a type that combines User interface with UserMethods
-export type UserModel = Model<User, object, UserMethods>;
+export interface UserModel extends Model<IUser, object, IUserMethods> {
+  aggregatePaginate: any;
+}
 
-
-const userSchema = new Schema<User, UserModel, UserMethods>(
+const userSchema = new Schema<IUser, UserModel, IUserMethods>(
   {
     username: {
       type: String,
@@ -111,5 +114,6 @@ userSchema.methods.generateRefreshToken = function () {
     expiresIn: env.JWT_REFRESH_EXPIRY as SignOptions["expiresIn"],
   });
 };
+userSchema.plugin(mongooseAggregatePaginate as any);
 
-export const userModel = model<User, UserModel>("User", userSchema);
+export const userModel = model<IUser, UserModel>("User", userSchema);

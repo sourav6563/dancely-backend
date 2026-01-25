@@ -14,30 +14,27 @@ export const toggleVideoLike = asyncHandler(async (req: Request, res: Response) 
 
   const video = await Video.findById(videoId);
   if (!video) {
-    throw new ApiError(404, " Invalid Id Video not found");
+    throw new ApiError(404, "Video not found");
   }
 
-  const existingLike = await Like.findOne({
+  // Single DB call: delete if exists, otherwise returns null
+  const deletedLike = await Like.findOneAndDelete({
     video: videoId,
     likedBy: userId,
   });
 
-  if (existingLike) {
-    await Like.findByIdAndDelete(existingLike._id);
-
+  if (deletedLike) {
     return res
       .status(200)
       .json(new apiResponse(200, "Video unliked successfully", { isLiked: false }));
-  } else {
-    await Like.create({
-      video: videoId,
-      likedBy: req.user?._id,
-    });
-
-    return res
-      .status(200)
-      .json(new apiResponse(200, "Video liked successfully", { isLiked: true }));
   }
+
+  await Like.create({
+    video: videoId,
+    likedBy: userId,
+  });
+
+  return res.status(200).json(new apiResponse(200, "Video liked successfully", { isLiked: true }));
 });
 
 export const toggleCommentLike = asyncHandler(async (req: Request, res: Response) => {
@@ -47,30 +44,28 @@ export const toggleCommentLike = asyncHandler(async (req: Request, res: Response
 
   const comment = await Comment.findById(commentId);
   if (!comment) {
-    throw new ApiError(404, "Invalid Id Comment not found");
+    throw new ApiError(404, "Comment not found");
   }
 
-  const existingLike = await Like.findOne({
+  const deletedLike = await Like.findOneAndDelete({
     comment: commentId,
     likedBy: userId,
   });
 
-  if (existingLike) {
-    await Like.findByIdAndDelete(existingLike._id);
-
+  if (deletedLike) {
     return res
       .status(200)
       .json(new apiResponse(200, "Comment unliked successfully", { isLiked: false }));
-  } else {
-    await Like.create({
-      comment: commentId,
-      likedBy: userId,
-    });
-
-    return res
-      .status(200)
-      .json(new apiResponse(200, "Comment liked successfully", { isLiked: true }));
   }
+
+  await Like.create({
+    comment: commentId,
+    likedBy: userId,
+  });
+
+  return res
+    .status(200)
+    .json(new apiResponse(200, "Comment liked successfully", { isLiked: true }));
 });
 
 export const toggleCommunityPostLike = asyncHandler(async (req: Request, res: Response) => {
@@ -79,46 +74,50 @@ export const toggleCommunityPostLike = asyncHandler(async (req: Request, res: Re
 
   const post = await CommunityPost.findById(postId);
   if (!post) {
-    throw new ApiError(404, " Invalid Id Community post not found");
+    throw new ApiError(404, "Community post not found");
   }
 
-  const existingLike = await Like.findOne({
+  const deletedLike = await Like.findOneAndDelete({
     communityPost: postId,
     likedBy: userId,
   });
 
-  if (existingLike) {
-    await Like.findByIdAndDelete(existingLike._id);
-
+  if (deletedLike) {
     return res
       .status(200)
       .json(new apiResponse(200, "Post unliked successfully", { isLiked: false }));
-  } else {
-    await Like.create({
-      communityPost: postId,
-      likedBy: userId,
-    });
-
-    return res.status(200).json(new apiResponse(200, "Post liked successfully", { isLiked: true }));
   }
+
+  await Like.create({
+    communityPost: postId,
+    likedBy: userId,
+  });
+
+  return res.status(200).json(new apiResponse(200, "Post liked successfully", { isLiked: true }));
 });
 
 export const getLikedVideos = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?._id;
+
   const likedVideos = await Like.aggregate([
+    // 1. Find all likes by this user
     {
       $match: {
         likedBy: userId,
-        video: { $exists: true, $ne: null },
       },
     },
+    // 2. Lookup the video details
     {
       $lookup: {
         from: "videos",
         localField: "video",
         foreignField: "_id",
-        as: "video",
+        as: "likedVideo",
         pipeline: [
+          {
+            $match: { isPublished: true }, // OPTIONAL: Filter out unpublished/deleted videos
+          },
+          // 3. Lookup the owner of the video (Nested Lookup)
           {
             $lookup: {
               from: "users",
@@ -129,7 +128,7 @@ export const getLikedVideos = asyncHandler(async (req: Request, res: Response) =
                 {
                   $project: {
                     username: 1,
-                    fullname: 1,
+                    name: 1,
                     profileImage: 1,
                   },
                 },
@@ -144,11 +143,25 @@ export const getLikedVideos = asyncHandler(async (req: Request, res: Response) =
         ],
       },
     },
+    // 4. Unwind the video array (removes likes on deleted videos that returned empty arrays)
     {
-      $unwind: "$video",
+      $unwind: "$likedVideo",
     },
+    // 5. Clean Projection (Matches getAllVideos format)
     {
-      $replaceRoot: { newRoot: "$video" },
+      $project: {
+        _id: "$likedVideo._id",
+        owner: "$likedVideo.owner",
+        title: "$likedVideo.title",
+        description: "$likedVideo.description",
+        views: "$likedVideo.views",
+        duration: "$likedVideo.duration",
+        createdAt: "$likedVideo.createdAt",
+        isPublished: "$likedVideo.isPublished",
+        // Flatten the Cloudinary objects to just URLs
+        videoFile: "$likedVideo.videoFile.url",
+        thumbnail: "$likedVideo.thumbnail.url",
+      },
     },
   ]);
 

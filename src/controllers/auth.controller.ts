@@ -9,6 +9,14 @@ import crypto from "crypto";
 import { Request, Response } from "express";
 import { env } from "../env";
 import jwt from "jsonwebtoken";
+import {
+  COOKIE_OPTIONS,
+  CookieNames,
+  EMAIL_VERIFICATION_EXPIRY_MS,
+  EmailTypes,
+  PASSWORD_RESET_EXPIRY_MS,
+  USER_SENSITIVE_FIELDS,
+} from "../constants";
 
 export const generateToken = async (userId: string | Types.ObjectId) => {
   try {
@@ -47,7 +55,7 @@ export const checkUsername = asyncHandler(async (req: Request, res: Response) =>
   );
 });
 
-export const signUpUser = asyncHandler(async (req: Request, res: Response) => {
+export const registerUser = asyncHandler(async (req: Request, res: Response) => {
   const { name, email, username, password } = req.body;
 
   const userByEmail = await userModel.findOne({ email });
@@ -70,7 +78,7 @@ export const signUpUser = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const verifyCode = crypto.randomInt(100000, 1000000).toString();
-  const verifyExpiry = new Date(Date.now() + 15 * 60 * 1000);
+  const verifyExpiry = new Date(Date.now() + EMAIL_VERIFICATION_EXPIRY_MS);
 
   const defaultImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(
     name,
@@ -100,7 +108,7 @@ export const signUpUser = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  const mail = await sendEmail("VERIFY", email, username, verifyCode);
+  const mail = await sendEmail(EmailTypes.VERIFY, email, username, verifyCode);
   if (!mail.success) {
     throw new ApiError(500, "Failed to send verification email");
   }
@@ -110,10 +118,9 @@ export const signUpUser = asyncHandler(async (req: Request, res: Response) => {
 
 export const verifyAccount = asyncHandler(async (req: Request, res: Response) => {
   const { code, email } = req.body;
-  console.log(email, code);
 
   const user = await userModel.findOne({ email: email });
-  console.log(user);
+
   if (!user) {
     throw new ApiError(404, "User not found");
   }
@@ -157,30 +164,25 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
   const isPasswordValid = await user.isPasswordCorrect(password);
 
   if (!isPasswordValid) {
-    throw new ApiError(401, "Invalid password");
+    throw new ApiError(401, "Invalid credentials");
   }
 
   const { accessToken, refreshToken } = await generateToken(user._id);
-  const loggedInUser = await userModel.findById(user._id).select("-password -refreshToken");
+  const loggedInUser = await userModel.findById(user._id).select(USER_SENSITIVE_FIELDS);
   if (!loggedInUser) {
     throw new ApiError(500, "something went wrong while logging in user");
   }
 
-  const cookieOptions = {
-    httpOnly: true,
-    secure: env.NODE_ENV === "production",
-  };
-
   return res
     .status(200)
-    .cookie("accessToken", accessToken, cookieOptions)
-    .cookie("refreshToken", refreshToken, cookieOptions)
+    .cookie(CookieNames.ACCESS_TOKEN, accessToken, COOKIE_OPTIONS)
+    .cookie(CookieNames.REFRESH_TOKEN, refreshToken, COOKIE_OPTIONS)
     .json(new apiResponse(200, "User logged in successfully", loggedInUser));
 });
 
 export const refreshAccessToken = asyncHandler(async (req: Request, res: Response) => {
   const incomingRefreshToken =
-    req.cookies?.refreshToken || req.header("authorization")?.replace("Bearer ", "");
+    req.cookies?.[CookieNames.REFRESH_TOKEN] || req.header("authorization")?.replace("Bearer ", "");
 
   if (!incomingRefreshToken) {
     throw new ApiError(401, "UNAUTHORIZED");
@@ -202,15 +204,10 @@ export const refreshAccessToken = asyncHandler(async (req: Request, res: Respons
 
   const { accessToken, refreshToken } = await generateToken(user._id);
 
-  const cookieOptions = {
-    httpOnly: true,
-    secure: env.NODE_ENV === "production",
-  };
-
   return res
     .status(200)
-    .cookie("accessToken", accessToken, cookieOptions)
-    .cookie("refreshToken", refreshToken, cookieOptions)
+    .cookie(CookieNames.ACCESS_TOKEN, accessToken, COOKIE_OPTIONS)
+    .cookie(CookieNames.REFRESH_TOKEN, refreshToken, COOKIE_OPTIONS)
     .json(new apiResponse(200, "Access token refreshed successfully"));
 });
 
@@ -232,20 +229,17 @@ export const logoutUser = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(404, "User not found");
   }
 
-  const cookieOptions = {
-    httpOnly: true,
-    secure: env.NODE_ENV === "production",
-  };
-
   return res
     .status(200)
-    .clearCookie("accessToken", cookieOptions)
-    .clearCookie("refreshToken", cookieOptions)
+    .clearCookie(CookieNames.ACCESS_TOKEN, COOKIE_OPTIONS)
+    .clearCookie(CookieNames.REFRESH_TOKEN, COOKIE_OPTIONS)
     .json(new apiResponse(200, "User logged out successfully"));
 });
-export const getUserInfo = asyncHandler(async (req, res) => {
+
+export const getMe = asyncHandler(async (req, res) => {
   return res.status(200).json(new apiResponse(200, "User details fetched successfully", req.user));
 });
+
 export const changePassword = asyncHandler(async (req: Request, res: Response) => {
   const { oldPassword, newPassword } = req.body;
 
@@ -254,37 +248,34 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
     throw new ApiError(404, "update password failed User not found");
   }
 
-  const ispasswordValidated = await user?.isPasswordCorrect(oldPassword);
+  const isPasswordValidated = await user.isPasswordCorrect(oldPassword);
 
-  if (!ispasswordValidated) {
+  if (!isPasswordValidated) {
     throw new ApiError(401, "old password is incorrect");
   }
   user.password = newPassword;
   await user.save({ validateBeforeSave: false });
   return res.status(200).json(new apiResponse(200, "Password changed successfully"));
 });
+
 export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body;
 
   const user = await userModel.findOne({ email });
 
-  // if (!user) {
-  //   throw new ApiError(404, "User not found");
-  // }
-
   if (!user || !user.isVerified) {
-    throw new ApiError(400, "User not found");
+    throw new ApiError(404, "User not found");
   }
 
   const resetCode = crypto.randomInt(100000, 1000000).toString();
-  const resetExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+  const resetExpiry = new Date(Date.now() + PASSWORD_RESET_EXPIRY_MS); // 15 minutes
 
   user.passwordResetCode = resetCode;
   user.passwordResetExpires = resetExpiry;
 
   await user.save({ validateBeforeSave: false });
 
-  const mail = await sendEmail("RESET", user.email, user.username, resetCode);
+  const mail = await sendEmail(EmailTypes.RESET, user.email, user.username, resetCode);
 
   if (!mail.success) {
     throw new ApiError(500, "Failed to send reset password email");
@@ -320,14 +311,10 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
   user.refreshToken = undefined;
 
   await user.save({ validateBeforeSave: false });
-  const cookieOptions = {
-    httpOnly: true,
-    secure: env.NODE_ENV === "production",
-  };
 
   return res
     .status(200)
-    .clearCookie("refreshToken", cookieOptions)
-    .clearCookie("accessToken", cookieOptions)
+    .clearCookie(CookieNames.REFRESH_TOKEN, COOKIE_OPTIONS)
+    .clearCookie(CookieNames.ACCESS_TOKEN, COOKIE_OPTIONS)
     .json(new apiResponse(200, "Password reset successful. Please login again"));
 });

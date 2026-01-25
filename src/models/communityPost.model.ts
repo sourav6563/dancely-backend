@@ -1,11 +1,13 @@
-import { Schema, model, Types } from "mongoose";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Schema, model, Types, Model } from "mongoose";
+import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
-interface CommunityPost {
+interface ICommunityPost {
   owner: Types.ObjectId;
   content: string;
 }
 
-const communityPostSchema = new Schema<CommunityPost>(
+const communityPostSchema = new Schema<ICommunityPost>(
   {
     owner: {
       type: Schema.Types.ObjectId,
@@ -23,4 +25,13 @@ const communityPostSchema = new Schema<CommunityPost>(
   { timestamps: true },
 );
 
-export const CommunityPost = model<CommunityPost>("CommunityPost", communityPostSchema);
+communityPostSchema.plugin(mongooseAggregatePaginate);
+
+interface communityPostModel extends Model<ICommunityPost> {
+  aggregatePaginate: any;
+}
+
+export const CommunityPost = model<ICommunityPost, communityPostModel>(
+  "CommunityPost",
+  communityPostSchema,
+);

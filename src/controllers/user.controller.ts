@@ -5,15 +5,15 @@ import { apiResponse } from "../utils/apiResponse";
 import { Request, Response } from "express";
 import { unlink } from "fs/promises";
 import { deleteOnCloudinary, uploadOnCloudinary } from "../utils/cloudinary";
-
-
+import { ALLOWED_IMAGE_TYPES, USER_SENSITIVE_FIELDS } from "../constants";
 
 export const updateName = asyncHandler(async (req: Request, res: Response) => {
   const { name } = req.body;
+  const userId = req.user?._id;
 
   const user = await userModel
-    .findByIdAndUpdate(req.user?._id, { $set: { name: name } }, { new: true })
-    .select("-password -refreshToken");
+    .findByIdAndUpdate(userId, { $set: { name } }, { new: true })
+    .select(USER_SENSITIVE_FIELDS);
 
   if (!user) {
     throw new ApiError(404, "Name update failed User not found");
@@ -25,7 +25,7 @@ export const updateEmail = asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body;
 
   const existingUser = await userModel.findOne({
-    email: email,
+    email,
     _id: { $ne: req.user?._id },
   });
 
@@ -34,8 +34,8 @@ export const updateEmail = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const user = await userModel
-    .findByIdAndUpdate(req.user?._id, { $set: { email: email } }, { new: true })
-    .select("-password -refreshToken");
+    .findByIdAndUpdate(req.user?._id, { $set: { email } }, { new: true })
+    .select(USER_SENSITIVE_FIELDS);
 
   if (!user) {
     throw new ApiError(404, "Email update failed User not found");
@@ -54,9 +54,7 @@ export const updateProfileImage = asyncHandler(async (req: Request, res: Respons
   let profileImage = null;
 
   try {
-    const allowedImageTypes = ["image/jpeg", "image/png"];
-
-    if (!allowedImageTypes.includes(req.file!.mimetype)) {
+    if (!ALLOWED_IMAGE_TYPES.includes(req.file!.mimetype)) {
       throw new ApiError(400, "Invalid profileImage file");
     }
 
@@ -68,7 +66,7 @@ export const updateProfileImage = asyncHandler(async (req: Request, res: Respons
 
     const user = await userModel
       .findByIdAndUpdate(req.user?._id, { $set: { profileImage: profileImage.url } }, { new: true })
-      .select("-password -refreshToken");
+      .select(USER_SENSITIVE_FIELDS);
 
     if (!user) {
       throw new ApiError(404, "User not found");
@@ -90,10 +88,6 @@ export const updateProfileImage = asyncHandler(async (req: Request, res: Respons
 export const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
   const { username } = req.params;
   const myId = req.user?._id;
-
-  if (!username?.trim()) {
-    throw new ApiError(400, "username is required");
-  }
 
   const profile = await userModel.aggregate([
     // 1. find the user
@@ -142,14 +136,15 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
     // 5. remove heavy arrays if not needed
     {
       $project: {
-        password: 0,
-        refreshToken: 0,
-        emailVerificationCode: 0,
-        emailVerificationExpires: 0,
-        passwordResetCode: 0,
-        passwordResetExpires: 0,
-        followers: 0,
-        following: 0,
+        _id: 1,
+        username: 1,
+        name: 1,
+        profileImage: 1,
+        isVerified: 1,
+        followersCount: 1,
+        followingCount: 1,
+        isFollowedByMe: 1,
+        createdAt: 1,
       },
     },
   ]);
@@ -160,25 +155,32 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
 
   return res
     .status(200)
-    .json(new apiResponse(200, profile[0], "User profile fetched successfully"));
+    .json(new apiResponse(200, "User profile fetched successfully", profile[0]));
 });
 
 export const getWatchHistory = asyncHandler(async (req: Request, res: Response) => {
-  const myId = req.user?._id;
+  const { page = 1, limit = 10 } = req.query;
+  const userId = req.user?._id;
 
-  const userWithHistory = await userModel.aggregate([
+  const aggregate = userModel.aggregate([
     {
       $match: {
-        _id: myId,
+        _id: userId,
       },
+    },
+    {
+      $unwind: "$watchHistory",
     },
     {
       $lookup: {
         from: "videos",
         localField: "watchHistory",
         foreignField: "_id",
-        as: "watchHistory",
+        as: "video",
         pipeline: [
+          {
+            $match: { isPublished: true },
+          },
           {
             $lookup: {
               from: "users",
@@ -198,27 +200,41 @@ export const getWatchHistory = asyncHandler(async (req: Request, res: Response) 
           },
           {
             $addFields: {
-              owner: {
-                $first: "$owner",
-              },
+              owner: { $first: "$owner" },
             },
           },
         ],
       },
     },
+    {
+      $unwind: "$video",
+    },
+    {
+      $replaceRoot: { newRoot: "$video" },
+    },
+    {
+      $project: {
+        _id: 1,
+        owner: 1,
+        title: 1,
+        description: 1,
+        views: 1,
+        duration: 1,
+        createdAt: 1,
+        videoFile: "$videoFile.url",
+        thumbnail: "$thumbnail.url",
+      },
+    },
   ]);
 
-  // The aggregation pipeline returns an array, even if only one document is matched.
-  // We check if the array is empty, which means the user was not found.
-  if (!userWithHistory?.length) {
-    throw new ApiError(404, "User not found or watch history is empty");
-  }
+  const options = {
+    page: parseInt(page as string, 10),
+    limit: parseInt(limit as string, 10),
+  };
 
-  // Access the first (and only) element of the array to get the user document,
-  // then extract the watchHistory from it.
+  const watchHistory = await userModel.aggregatePaginate(aggregate, options);
+
   return res
     .status(200)
-    .json(
-      new apiResponse(200, "Watch history fetched successfully", userWithHistory[0].watchHistory),
-    );
+    .json(new apiResponse(200, "Watch history fetched successfully", watchHistory));
 });

@@ -1,13 +1,13 @@
 import { Schema, model, Types } from "mongoose";
 
-interface Like {
+interface ILike {
   video?: Types.ObjectId;
   comment?: Types.ObjectId;
   communityPost?: Types.ObjectId;
   likedBy: Types.ObjectId;
 }
 
-const likeSchema = new Schema<Like>(
+const likeSchema = new Schema<ILike>(
   {
     video: {
       type: Schema.Types.ObjectId,
@@ -32,4 +32,4 @@ const likeSchema = new Schema<Like>(
 
 likeSchema.index({ likedBy: 1, video: 1, comment: 1, communityPost: 1 }, { unique: true });
 
-export const Like = model<Like>("Like", likeSchema);
+export const Like = model<ILike>("Like", likeSchema);

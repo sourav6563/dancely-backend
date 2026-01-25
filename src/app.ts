@@ -6,7 +6,7 @@ import { logger } from "./utils/logger";
 import { env } from "./env";
 import "./database/db";
 import healthCheckRouter from "./routes/healthcheck.route";
-import { errorHandler } from "./middlewares/errorhandler.middware";
+import { errorHandler } from "./middlewares/errorhandler.middleware";
 import userRouter from "./routes/user.route";
 import authRouter from "./routes/auth.route";
 import videoRouter from "./routes/video.route";
@@ -14,12 +14,38 @@ import likeRouter from "./routes/like.route";
 import commentRouter from "./routes/comment.route";
 import playlistRouter from "./routes/playlist.route";
 import dashboardRouter from "./routes/dashboard.route";
+import communityPostRouter from "./routes/communityPost.route";
+import followerRouter from "./routes/follower.route";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import swaggerRouter from "./swagger";
+
 const app = express();
+
+app.set("trust proxy", 1);
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 2000, //
+  message: "Too many requests , please try again later.",
+});
+app.use("/api", limiter);
+app.use(helmet());
 
 app.use(
   cors({
     origin: env.CORS_ORIGIN,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "device-remember-token",
+      "Access-Control-Allow-Origin",
+      "Origin",
+      "Accept",
+    ],
   }),
 );
 
@@ -41,18 +67,22 @@ app.use(
 );
 //common middleware
 
+app.use(express.static("public"));
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ limit: "16kb", extended: true }));
-app.use(express.static("public"));
 app.use(cookieParser());
-app.use("/api/v1/healthcheck", healthCheckRouter);
+app.use("/health", healthCheckRouter);
+
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/video", videoRouter);
 app.use("/api/v1/like", likeRouter);
 app.use("/api/v1/comment", commentRouter);
 app.use("/api/v1/playlist", playlistRouter);
+app.use("/api/v1/communitypost", communityPostRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
+app.use("/api/v1/follower", followerRouter);
+app.use("/api/v1/docs", swaggerRouter);
 
 app.use(errorHandler);
 export { app };
