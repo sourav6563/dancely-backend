@@ -10,7 +10,7 @@ import { unlink } from "fs/promises";
 import { VideoQuery } from "../validators/video.validator";
 import { Like } from "../models/like.model";
 import { Comment } from "../models/comment.model";
-import { userModel } from "../models/user.model";
+import { User } from "../models/user.model";
 import { Types } from "mongoose";
 import { Playlist } from "../models/playlist.model";
 import {
@@ -291,7 +291,7 @@ export const getVideoById = asyncHandler(async (req: Request, res: Response) => 
   }
 
   if (userId) {
-    await userModel.findByIdAndUpdate(userId, {
+    await User.findByIdAndUpdate(userId, {
       $addToSet: { watchHistory: videoId },
     });
   }
@@ -584,7 +584,7 @@ export const deleteVideo = asyncHandler(async (req: Request, res: Response) => {
     await Promise.all([
       Like.deleteMany({ video: videoId }),
       Comment.deleteMany({ video: videoId }),
-      userModel.updateMany({ watchHistory: videoId }, { $pull: { watchHistory: videoId } }),
+      User.updateMany({ watchHistory: videoId }, { $pull: { watchHistory: videoId } }),
       Playlist.updateMany({ videos: videoId }, { $pull: { videos: videoId } }),
     ]).catch((err) => {
       logger.warn(`DB cleanup failed for video ${videoId}`, err);

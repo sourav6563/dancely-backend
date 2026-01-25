@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { userModel } from "../models/user.model";
+import { User } from "../models/user.model";
 import { ApiError } from "../utils/apiError";
 import { logger } from "../utils/logger";
 import { asyncHandler } from "../utils/asyncHandler";
@@ -20,7 +20,7 @@ import {
 
 export const generateToken = async (userId: string | Types.ObjectId) => {
   try {
-    const user = await userModel.findById(userId);
+    const user = await User.findById(userId);
     if (!user) {
       throw new ApiError(404, "User not found");
     }
@@ -39,7 +39,7 @@ export const generateToken = async (userId: string | Types.ObjectId) => {
 export const checkUsername = asyncHandler(async (req: Request, res: Response) => {
   const { username } = req.query;
 
-  const existingVerifiedUser = await userModel.findOne({
+  const existingVerifiedUser = await User.findOne({
     username,
     isVerified: true,
   });
@@ -58,8 +58,8 @@ export const checkUsername = asyncHandler(async (req: Request, res: Response) =>
 export const registerUser = asyncHandler(async (req: Request, res: Response) => {
   const { name, email, username, password } = req.body;
 
-  const userByEmail = await userModel.findOne({ email });
-  const userByUsername = await userModel.findOne({ username });
+  const userByEmail = await User.findOne({ email });
+  const userByUsername = await User.findOne({ username });
 
   if (
     userByEmail &&
@@ -96,7 +96,7 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
 
     await user.save();
   } else {
-    await userModel.create({
+    await User.create({
       name,
       email,
       username,
@@ -119,7 +119,7 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
 export const verifyAccount = asyncHandler(async (req: Request, res: Response) => {
   const { code, email } = req.body;
 
-  const user = await userModel.findOne({ email: email });
+  const user = await User.findOne({ email: email });
 
   if (!user) {
     throw new ApiError(404, "User not found");
@@ -153,7 +153,7 @@ export const verifyAccount = asyncHandler(async (req: Request, res: Response) =>
 export const loginUser = asyncHandler(async (req: Request, res: Response) => {
   const { identifier, password } = req.body;
 
-  const user = await userModel.findOne({
+  const user = await User.findOne({
     $or: [{ email: identifier.toLowerCase() }, { username: identifier.toLowerCase() }],
   });
 
@@ -168,7 +168,7 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const { accessToken, refreshToken } = await generateToken(user._id);
-  const loggedInUser = await userModel.findById(user._id).select(USER_SENSITIVE_FIELDS);
+  const loggedInUser = await User.findById(user._id).select(USER_SENSITIVE_FIELDS);
   if (!loggedInUser) {
     throw new ApiError(500, "something went wrong while logging in user");
   }
@@ -196,7 +196,7 @@ export const refreshAccessToken = asyncHandler(async (req: Request, res: Respons
     throw new ApiError(401, "INVALID_REFRESH_TOKEN");
   }
 
-  const user = await userModel.findById(decodedToken._id);
+  const user = await User.findById(decodedToken._id);
 
   if (!user || user.refreshToken !== incomingRefreshToken) {
     throw new ApiError(401, "INVALID_REFRESH_TOKEN");
@@ -217,7 +217,7 @@ export const logoutUser = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(401, "Unauthorized request");
   }
 
-  const user = await userModel.findByIdAndUpdate(
+  const user = await User.findByIdAndUpdate(
     id,
     {
       $unset: { refreshToken: 1 },
@@ -243,7 +243,7 @@ export const getMe = asyncHandler(async (req, res) => {
 export const changePassword = asyncHandler(async (req: Request, res: Response) => {
   const { oldPassword, newPassword } = req.body;
 
-  const user = await userModel.findById(req.user?._id);
+  const user = await User.findById(req.user?._id);
   if (!user) {
     throw new ApiError(404, "update password failed User not found");
   }
@@ -261,7 +261,7 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
 export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body;
 
-  const user = await userModel.findOne({ email });
+  const user = await User.findOne({ email });
 
   if (!user || !user.isVerified) {
     throw new ApiError(404, "User not found");
@@ -287,7 +287,7 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
 export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
   const { email, code, newPassword } = req.body;
 
-  const user = await userModel.findOne({ email });
+  const user = await User.findOne({ email });
 
   if (!user) {
     throw new ApiError(404, "User not found");

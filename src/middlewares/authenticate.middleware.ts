@@ -4,7 +4,7 @@ import { Request, Response, NextFunction } from "express";
 import { ApiError } from "../utils/apiError";
 import { asyncHandler } from "../utils/asyncHandler";
 import { env } from "../env";
-import { userModel } from "../models/user.model";
+import { User } from "../models/user.model";
 import { USER_SENSITIVE_FIELDS } from "../constants";
 
 export const authenticate = asyncHandler(async (req: Request, _: Response, next: NextFunction) => {
@@ -17,7 +17,7 @@ export const authenticate = asyncHandler(async (req: Request, _: Response, next:
   try {
     const decodedToken = jwt.verify(token, env.JWT_ACCESS_SECRET) as jwt.JwtPayload;
 
-    const user = await userModel.findById(decodedToken._id).select(USER_SENSITIVE_FIELDS);
+    const user = await User.findById(decodedToken._id).select(USER_SENSITIVE_FIELDS);
 
     if (!user) {
       throw new ApiError(401, "UNAUTHORIZED");

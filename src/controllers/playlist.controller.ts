@@ -4,7 +4,7 @@ import { ApiError } from "../utils/apiError";
 import { apiResponse } from "../utils/apiResponse";
 import { asyncHandler } from "../utils/asyncHandler";
 import { Video } from "../models/video.model";
-import { userModel } from "../models/user.model";
+import { User } from "../models/user.model";
 
 export const createPlaylist = asyncHandler(async (req: Request, res: Response) => {
   const { name, description } = req.body;
@@ -249,7 +249,7 @@ export const getPlaylistById = asyncHandler(async (req: Request, res: Response) 
 export const getUserPlaylists = asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
 
-  const user = await userModel.findById(userId);
+  const user = await User.findById(userId);
 
   if (!user) {
     throw new ApiError(404, "User not found");

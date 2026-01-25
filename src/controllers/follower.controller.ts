@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { Types } from "mongoose";
 import { Follow } from "../models/follow.model";
-import { userModel } from "../models/user.model";
+import { User } from "../models/user.model";
 import { ApiError } from "../utils/apiError";
 import { apiResponse } from "../utils/apiResponse";
 import { asyncHandler } from "../utils/asyncHandler";
@@ -10,7 +10,7 @@ export const toggleFollow = asyncHandler(async (req: Request, res: Response) => 
   const { userId } = req.params; // The user to be followed/unfollowed
   const currentUserId = req.user?._id;
 
-  const user = await userModel.findById(userId);
+  const user = await User.findById(userId);
   if (!user) {
     throw new ApiError(404, "User not found");
   }
@@ -42,7 +42,7 @@ export const getUserFollowers = asyncHandler(async (req: Request, res: Response)
   const { userId } = req.params;
   const { page = 1, limit = 10 } = req.query;
 
-  const user = await userModel.findById(userId);
+  const user = await User.findById(userId);
   if (!user) {
     throw new ApiError(404, "User not found");
   }
@@ -96,7 +96,7 @@ export const getUserFollowing = asyncHandler(async (req: Request, res: Response)
   const { userId } = req.params;
   const { page = 1, limit = 10 } = req.query;
 
-  const user = await userModel.findById(userId);
+  const user = await User.findById(userId);
   if (!user) {
     throw new ApiError(404, "User not found");
   }

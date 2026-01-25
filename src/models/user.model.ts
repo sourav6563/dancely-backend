@@ -116,4 +116,4 @@ userSchema.methods.generateRefreshToken = function () {
 };
 userSchema.plugin(mongooseAggregatePaginate as any);
 
-export const userModel = model<IUser, UserModel>("User", userSchema);
+export const User = model<IUser, UserModel>("User", userSchema);

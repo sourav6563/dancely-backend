@@ -1,4 +1,4 @@
-import { userModel } from "../models/user.model";
+import { User } from "../models/user.model";
 import { ApiError } from "../utils/apiError";
 import { asyncHandler } from "../utils/asyncHandler";
 import { apiResponse } from "../utils/apiResponse";
@@ -11,9 +11,9 @@ export const updateName = asyncHandler(async (req: Request, res: Response) => {
   const { name } = req.body;
   const userId = req.user?._id;
 
-  const user = await userModel
-    .findByIdAndUpdate(userId, { $set: { name } }, { new: true })
-    .select(USER_SENSITIVE_FIELDS);
+  const user = await User.findByIdAndUpdate(userId, { $set: { name } }, { new: true }).select(
+    USER_SENSITIVE_FIELDS,
+  );
 
   if (!user) {
     throw new ApiError(404, "Name update failed User not found");
@@ -24,7 +24,7 @@ export const updateName = asyncHandler(async (req: Request, res: Response) => {
 export const updateEmail = asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body;
 
-  const existingUser = await userModel.findOne({
+  const existingUser = await User.findOne({
     email,
     _id: { $ne: req.user?._id },
   });
@@ -33,9 +33,11 @@ export const updateEmail = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(409, "Email is already in use");
   }
 
-  const user = await userModel
-    .findByIdAndUpdate(req.user?._id, { $set: { email } }, { new: true })
-    .select(USER_SENSITIVE_FIELDS);
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    { $set: { email } },
+    { new: true },
+  ).select(USER_SENSITIVE_FIELDS);
 
   if (!user) {
     throw new ApiError(404, "Email update failed User not found");
@@ -64,9 +66,11 @@ export const updateProfileImage = asyncHandler(async (req: Request, res: Respons
       throw new ApiError(500, "profileImage upload failed");
     }
 
-    const user = await userModel
-      .findByIdAndUpdate(req.user?._id, { $set: { profileImage: profileImage.url } }, { new: true })
-      .select(USER_SENSITIVE_FIELDS);
+    const user = await User.findByIdAndUpdate(
+      req.user?._id,
+      { $set: { profileImage: profileImage.url } },
+      { new: true },
+    ).select(USER_SENSITIVE_FIELDS);
 
     if (!user) {
       throw new ApiError(404, "User not found");
@@ -89,7 +93,7 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
   const { username } = req.params;
   const myId = req.user?._id;
 
-  const profile = await userModel.aggregate([
+  const profile = await User.aggregate([
     // 1. find the user
     {
       $match: {
@@ -162,7 +166,7 @@ export const getWatchHistory = asyncHandler(async (req: Request, res: Response) 
   const { page = 1, limit = 10 } = req.query;
   const userId = req.user?._id;
 
-  const aggregate = userModel.aggregate([
+  const aggregate = User.aggregate([
     {
       $match: {
         _id: userId,
@@ -232,7 +236,7 @@ export const getWatchHistory = asyncHandler(async (req: Request, res: Response) 
     limit: parseInt(limit as string, 10),
   };
 
-  const watchHistory = await userModel.aggregatePaginate(aggregate, options);
+  const watchHistory = await User.aggregatePaginate(aggregate, options);
 
   return res
     .status(200)

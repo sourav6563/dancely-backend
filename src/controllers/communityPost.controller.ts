@@ -3,7 +3,7 @@ import { CommunityPost } from "../models/communityPost.model";
 import { ApiError } from "../utils/apiError";
 import { apiResponse } from "../utils/apiResponse";
 import { asyncHandler } from "../utils/asyncHandler";
-import { userModel } from "../models/user.model";
+import { User } from "../models/user.model";
 import { Like } from "../models/like.model";
 import { Comment } from "../models/comment.model";
 import { logger } from "../utils/logger";
@@ -29,7 +29,7 @@ export const createCommunityPost = asyncHandler(async (req: Request, res: Respon
 export const getUserCommunityPosts = asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
   const { page = 1, limit = 10 } = req.query;
-  const user = await userModel.findById(userId);
+  const user = await User.findById(userId);
 
   if (!user) {
     throw new ApiError(404, "User not found");

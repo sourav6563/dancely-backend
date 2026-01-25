@@ -1,14 +1,31 @@
 import { Request, Response } from "express";
+import { connection, STATES } from "mongoose";
 import { apiResponse } from "../utils/apiResponse";
 import { asyncHandler } from "../utils/asyncHandler";
 import { logger } from "../utils/logger";
 
-export const healthCheck = asyncHandler(async (req: Request, res: Response) => {
-  logger.info(`Incoming request: [${req.method}] ${req.originalUrl}`);
+export const healthCheck = asyncHandler(async (_req: Request, res: Response) => {
+  const dbStatus = connection.readyState;
 
-  const response = new apiResponse(200, "ok", "Health check passed");
+  const dbState = STATES[dbStatus] || "unknown";
+  const isHealthy = dbStatus === 1;
 
-  res.status(200).json(response);
+  const healthData = {
+    status: isHealthy ? "OK" : "ERROR",
+    timestamp: new Date().toISOString(),
+    services: {
+      database: dbState,
+    },
+    system: {
+      uptime: process.uptime(),
+      memoryUsage: process.memoryUsage(),
+    },
+  };
 
-  logger.info(`Response sent with status: ${res.statusCode}`);
+  if (!isHealthy) {
+    logger.error(`Health check failed: DB state is ${dbState}`);
+    return res.status(503).json(new apiResponse(503, "Health check failed", healthData));
+  }
+
+  return res.status(200).json(new apiResponse(200, "Health check passed", healthData));
 });
