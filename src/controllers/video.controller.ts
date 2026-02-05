@@ -62,11 +62,6 @@ export const uploadVideo = asyncHandler(async (req: Request, res: Response) => {
     // 2. Upload to Cloudinary
     videoUploadResult = await uploadOnCloudinary(videoFile.path, {
       resource_type: "video",
-      eager: [
-        { streaming_profile: "hd", format: "m3u8" }, // HLS
-        { streaming_profile: "hd", format: "mpd" }, // DASH
-      ],
-      eager_async: false, // Wait for processing to ensure HLS is ready immediately
     }).catch((err) => {
       logger.error("Cloudinary video upload failed:", err);
       throw new ApiError(500, "Failed to upload video");
