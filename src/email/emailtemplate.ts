@@ -25,10 +25,13 @@ export const getEmailTemplate = (type: EmailTypes, username: string, code: strin
               
               <!-- Header -->
               <tr>
-                <td style="background-color: #18181b; padding: 40px 32px; text-align: center;">
-                  <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; line-height: 1.3;">
-                    ${title}
+                <td style="background: linear-gradient(to right, #7c3aed, #2563eb); background-color: #7c3aed; padding: 40px 32px; text-align: center;">
+                  <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 800; line-height: 1.3; font-family: 'Helvetica Neue', Arial, sans-serif; letter-spacing: -0.5px;">
+                    Dancely
                   </h1>
+                  <p style="margin: 8px 0 0 0; color: #e0e7ff; font-size: 14px; font-weight: 500;">
+                    ${title}
+                  </p>
                 </td>
               </tr>
               
@@ -72,7 +75,7 @@ export const getEmailTemplate = (type: EmailTypes, username: string, code: strin
                   
                   <!-- Footer Message -->
                   <p style="margin: 0; font-size: 13px; color: #a1a1aa; line-height: 1.6;">
-                    If you didn't request this, please ignore this email. Your account remains secure.
+                    If you didn't request this, please ignore this email. Your Dancely account remains secure.
                   </p>
                   
                 </td>
@@ -82,7 +85,7 @@ export const getEmailTemplate = (type: EmailTypes, username: string, code: strin
               <tr>
                 <td style="background-color: #fafafa; padding: 24px 32px; border-top: 1px solid #e5e5e5;">
                   <p style="margin: 0; font-size: 12px; color: #a1a1aa; text-align: center; line-height: 1.5;">
-                    © ${new Date().getFullYear()} Your Company. All rights reserved.
+                    © ${new Date().getFullYear()} Dancely. All rights reserved.
                   </p>
                 </td>
               </tr>

@@ -73,10 +73,7 @@ export const getVideoComments = asyncHandler(async (req: Request, res: Response)
   const options = {
     page: parseInt(page as string, 10),
     limit: parseInt(limit as string, 10),
-    customLabels: {
-      totalDocs: "totalComments",
-      docs: "comments",
-    },
+    sort: { createdAt: -1 },
   };
 
   const comments = await Comment.aggregatePaginate(Comment.aggregate(pipeline), options);
@@ -176,10 +173,6 @@ export const getPostComments = asyncHandler(async (req: Request, res: Response) 
   const options = {
     page: parseInt(page as string, 10),
     limit: parseInt(limit as string, 10),
-    customLabels: {
-      totalDocs: "totalComments",
-      docs: "comments",
-    },
   };
 
   const comments = await Comment.aggregatePaginate(Comment.aggregate(pipeline), options);

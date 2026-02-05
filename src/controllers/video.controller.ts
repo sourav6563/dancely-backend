@@ -10,7 +10,7 @@ import { unlink } from "fs/promises";
 import { VideoQuery } from "../validators/video.validator";
 import { Like } from "../models/like.model";
 import { Comment } from "../models/comment.model";
-import { userModel } from "../models/user.model";
+import { User } from "../models/user.model";
 import { Types } from "mongoose";
 import { Playlist } from "../models/playlist.model";
 import {
@@ -60,7 +60,14 @@ export const uploadVideo = asyncHandler(async (req: Request, res: Response) => {
     }
 
     // 2. Upload to Cloudinary
-    videoUploadResult = await uploadOnCloudinary(videoFile.path).catch((err) => {
+    videoUploadResult = await uploadOnCloudinary(videoFile.path, {
+      resource_type: "video",
+      eager: [
+        { streaming_profile: "hd", format: "m3u8" }, // HLS
+        { streaming_profile: "hd", format: "mpd" }, // DASH
+      ],
+      eager_async: false, // Wait for processing to ensure HLS is ready immediately
+    }).catch((err) => {
       logger.error("Cloudinary video upload failed:", err);
       throw new ApiError(500, "Failed to upload video");
     });
@@ -134,8 +141,14 @@ export const uploadVideo = asyncHandler(async (req: Request, res: Response) => {
           views: 1,
           isPublished: 1,
           createdAt: 1,
-          videoFile: "$videoFile.url",
-          thumbnail: "$thumbnail.url",
+          videoFile: {
+            url: "$videoFile.url",
+            public_id: "$videoFile.public_id",
+          },
+          thumbnail: {
+            url: "$thumbnail.url",
+            public_id: "$thumbnail.public_id",
+          },
         },
       },
     ]);
@@ -171,8 +184,10 @@ export const getAllVideos = asyncHandler(async (req: Request, res: Response) => 
 
   const filter: any = { isPublished: true };
 
+  // Use regex for partial matching (better UX for portfolio)
   if (query) {
-    filter.$text = { $search: query };
+    const searchRegex = new RegExp(query, "i");
+    filter.$or = [{ title: searchRegex }, { description: searchRegex }];
   }
   if (userId) {
     filter.owner = new Types.ObjectId(userId);
@@ -180,10 +195,6 @@ export const getAllVideos = asyncHandler(async (req: Request, res: Response) => 
   const sortOptions: any = {
     [sortBy]: sortOrder === "asc" ? 1 : -1,
   };
-
-  if (query) {
-    sortOptions.score = { $meta: "textScore" };
-  }
 
   const aggregate = Video.aggregate([
     { $match: filter },
@@ -197,6 +208,19 @@ export const getAllVideos = asyncHandler(async (req: Request, res: Response) => 
       },
     },
     { $addFields: { owner: { $first: "$owner" } } },
+    {
+      $lookup: {
+        from: "likes",
+        localField: "_id",
+        foreignField: "video",
+        as: "likes",
+      },
+    },
+    {
+      $addFields: {
+        likesCount: { $size: "$likes" },
+      },
+    },
     { $sort: sortOptions },
 
     {
@@ -209,8 +233,15 @@ export const getAllVideos = asyncHandler(async (req: Request, res: Response) => 
         duration: 1,
         createdAt: 1,
         isPublished: 1,
-        videoFile: "$videoFile.url",
-        thumbnail: "$thumbnail.url",
+        likesCount: 1,
+        videoFile: {
+          url: "$videoFile.url",
+          public_id: "$videoFile.public_id",
+        },
+        thumbnail: {
+          url: "$thumbnail.url",
+          public_id: "$thumbnail.public_id",
+        },
       },
     },
   ]);
@@ -238,6 +269,19 @@ export const getMyVideos = asyncHandler(async (req: Request, res: Response) => {
       },
     },
     {
+      $lookup: {
+        from: "likes",
+        localField: "_id",
+        foreignField: "video",
+        as: "likes",
+      },
+    },
+    {
+      $addFields: {
+        likesCount: { $size: "$likes" },
+      },
+    },
+    {
       $sort: {
         createdAt: -1,
       },
@@ -248,11 +292,18 @@ export const getMyVideos = asyncHandler(async (req: Request, res: Response) => {
         title: 1,
         description: 1,
         views: 1,
+        likesCount: 1,
         isPublished: 1,
         createdAt: 1,
         updatedAt: 1,
-        videoFile: "$videoFile.url",
-        thumbnail: "$thumbnail.url",
+        videoFile: {
+          url: "$videoFile.url",
+          public_id: "$videoFile.public_id",
+        },
+        thumbnail: {
+          url: "$thumbnail.url",
+          public_id: "$thumbnail.public_id",
+        },
       },
     },
   ]);
@@ -291,7 +342,7 @@ export const getVideoById = asyncHandler(async (req: Request, res: Response) => 
   }
 
   if (userId) {
-    await userModel.findByIdAndUpdate(userId, {
+    await User.findByIdAndUpdate(userId, {
       $addToSet: { watchHistory: videoId },
     });
   }
@@ -377,8 +428,14 @@ export const getVideoById = asyncHandler(async (req: Request, res: Response) => 
         isPublished: 1,
         likesCount: 1,
         isLiked: 1,
-        videoFile: "$videoFile.url",
-        thumbnail: "$thumbnail.url",
+        videoFile: {
+          url: "$videoFile.url",
+          public_id: "$videoFile.public_id",
+        },
+        thumbnail: {
+          url: "$thumbnail.url",
+          public_id: "$thumbnail.public_id",
+        },
       },
     },
   ]);
@@ -457,8 +514,14 @@ export const updateVideoDetails = asyncHandler(async (req: Request, res: Respons
         isPublished: 1,
         createdAt: 1,
         updatedAt: 1,
-        videoFile: "$videoFile.url",
-        thumbnail: "$thumbnail.url",
+        videoFile: {
+          url: "$videoFile.url",
+          public_id: "$videoFile.public_id",
+        },
+        thumbnail: {
+          url: "$thumbnail.url",
+          public_id: "$thumbnail.public_id",
+        },
       },
     },
   ]);
@@ -584,7 +647,7 @@ export const deleteVideo = asyncHandler(async (req: Request, res: Response) => {
     await Promise.all([
       Like.deleteMany({ video: videoId }),
       Comment.deleteMany({ video: videoId }),
-      userModel.updateMany({ watchHistory: videoId }, { $pull: { watchHistory: videoId } }),
+      User.updateMany({ watchHistory: videoId }, { $pull: { watchHistory: videoId } }),
       Playlist.updateMany({ videos: videoId }, { $pull: { videos: videoId } }),
     ]).catch((err) => {
       logger.warn(`DB cleanup failed for video ${videoId}`, err);

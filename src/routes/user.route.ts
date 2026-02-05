@@ -5,14 +5,17 @@ import { upload } from "../middlewares/multer.middleware";
 import {
   getUserProfile,
   getWatchHistory,
+  searchUsers,
   updateEmail,
   updateName,
   updateProfileImage,
+  updateBio,
 } from "../controllers/user.controller";
 import {
   updateEmailSchema,
   updateNameSchema,
   userProfileSchema,
+  updateBioSchema,
 } from "../validators/user.validator";
 
 const router = Router();
@@ -119,6 +122,39 @@ const router = Router();
  */
 
 router.use(authenticate);
+
+/**
+ * @swagger
+ * /user/search:
+ *   get:
+ *     tags: [User]
+ *     summary: Search users by name or username
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - name: query
+ *         in: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Search query (matches name or username)
+ *       - name: page
+ *         in: query
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - name: limit
+ *         in: query
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Users fetched successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.route("/search").get(searchUsers);
 
 /**
  * @swagger
@@ -266,6 +302,51 @@ router.route("/email").patch(validate(updateEmailSchema, ValidationSource.BODY),
  *         description: profileImage upload failed
  */
 router.route("/profileimage").patch(upload.single("profileImage"), updateProfileImage);
+
+/**
+ * @swagger
+ * /user/bio:
+ *   patch:
+ *     tags: [User]
+ *     summary: Update user bio
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - bio
+ *             properties:
+ *               bio:
+ *                 type: string
+ *                 example: "I love coding and coffee!"
+ *     responses:
+ *       200:
+ *         description: Bio updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: Bio updated successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/User'
+ *                 success:
+ *                   type: boolean
+ *       404:
+ *         description: User not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.route("/bio").patch(validate(updateBioSchema), updateBio);
 
 /**
  * @swagger

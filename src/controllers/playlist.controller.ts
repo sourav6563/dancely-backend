@@ -4,15 +4,77 @@ import { ApiError } from "../utils/apiError";
 import { apiResponse } from "../utils/apiResponse";
 import { asyncHandler } from "../utils/asyncHandler";
 import { Video } from "../models/video.model";
-import { userModel } from "../models/user.model";
+import { User } from "../models/user.model";
+
+export const searchPlaylists = asyncHandler(async (req: Request, res: Response) => {
+  const { query = "", page = 1, limit = 10 } = req.query;
+  const searchQuery = (query as string).trim();
+
+  if (!searchQuery) {
+    return res.status(200).json(new apiResponse(200, "Playlists fetched successfully", []));
+  }
+
+  const searchRegex = new RegExp(searchQuery, "i");
+
+  const playlists = await Playlist.aggregate([
+    {
+      $match: {
+        isPublished: true,
+        $or: [{ name: searchRegex }, { description: searchRegex }],
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "owner",
+        pipeline: [{ $project: { username: 1, name: 1, profileImage: 1 } }],
+      },
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "videos",
+        foreignField: "_id",
+        as: "videoList",
+        pipeline: [{ $match: { isPublished: true } }, { $project: { thumbnail: 1 } }],
+      },
+    },
+    {
+      $addFields: {
+        owner: { $first: "$owner" },
+        totalVideos: { $size: "$videoList" },
+        playlistThumbnail: { $first: "$videoList.thumbnail.url" },
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        name: 1,
+        description: 1,
+        owner: 1,
+        totalVideos: 1,
+        playlistThumbnail: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    },
+    { $skip: (Number(page) - 1) * Number(limit) },
+    { $limit: Number(limit) },
+  ]);
+
+  return res.status(200).json(new apiResponse(200, "Playlists fetched successfully", playlists));
+});
 
 export const createPlaylist = asyncHandler(async (req: Request, res: Response) => {
-  const { name, description } = req.body;
+  const { name, description, isPublished = true } = req.body;
   const userId = req.user?._id;
 
   const playlist = await Playlist.create({
     name,
     description: description || "",
+    isPublished,
     owner: userId,
     videos: [],
   });
@@ -44,10 +106,37 @@ export const getMyPlaylists = asyncHandler(async (req: Request, res: Response) =
       },
     },
     {
+      $lookup: {
+        from: "videos",
+        localField: "videos",
+        foreignField: "_id",
+        as: "firstVideo",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+            },
+          },
+          {
+            $project: {
+              thumbnail: 1,
+            },
+          },
+          { $limit: 1 },
+        ],
+      },
+    },
+    {
       $project: {
         name: 1,
         description: 1,
+        videos: 1,
         totalVideos: { $size: "$videos" },
+        playlistThumbnail: { $first: "$firstVideo.thumbnail.url" },
+        isPublished: 1,
         createdAt: 1,
         updatedAt: 1,
       },
@@ -79,8 +168,15 @@ export const updatePlaylist = asyncHandler(async (req: Request, res: Response) =
     throw new ApiError(403, "You are not authorized to update this playlist");
   }
 
-  playlist.name = name;
-  playlist.description = description || "";
+  if (name !== undefined) {
+    playlist.name = name;
+  }
+  if (description !== undefined) {
+    playlist.description = description;
+  }
+  if (req.body.isPublished !== undefined) {
+    playlist.isPublished = req.body.isPublished;
+  }
   await playlist.save();
 
   return res.status(200).json(new apiResponse(200, "Playlist updated successfully", playlist));
@@ -211,6 +307,7 @@ export const getPlaylistById = asyncHandler(async (req: Request, res: Response) 
           {
             $addFields: {
               owner: { $first: "$owner" },
+              thumbnail: "$thumbnail.url",
             },
           },
         ],
@@ -249,7 +346,7 @@ export const getPlaylistById = asyncHandler(async (req: Request, res: Response) 
 export const getUserPlaylists = asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
 
-  const user = await userModel.findById(userId);
+  const user = await User.findById(userId);
 
   if (!user) {
     throw new ApiError(404, "User not found");
@@ -259,6 +356,7 @@ export const getUserPlaylists = asyncHandler(async (req: Request, res: Response)
     {
       $match: {
         owner: user._id,
+        isPublished: true, // Only show public playlists on profile
       },
     },
     {
@@ -273,7 +371,7 @@ export const getUserPlaylists = asyncHandler(async (req: Request, res: Response)
     {
       $addFields: {
         totalVideos: { $size: "$videos" },
-        playlistThumbnail: { $first: "$videos.thumbnail" },
+        playlistThumbnail: { $first: "$videos.thumbnail.url" },
       },
     },
     {

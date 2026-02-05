@@ -63,8 +63,6 @@ const videoSchema = new Schema<IVideo>(
 
 videoSchema.plugin(mongooseAggregatePaginate);
 
-videoSchema.index({ title: "text", description: "text" });
-
 interface VideoModel extends Model<IVideo> {
   aggregatePaginate: any;
 }

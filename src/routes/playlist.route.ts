@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticate } from "../middlewares/authenticate.middleware";
 import { validate, ValidationSource } from "../middlewares/validate.middleware";
-import { PlaylistSchema } from "../validators/playlist.validator";
+import { PlaylistSchema, UpdatePlaylistSchema } from "../validators/playlist.validator";
 import {
   playlistIdParamSchema,
   userIdParamSchema,
@@ -15,6 +15,7 @@ import {
   getPlaylistById,
   getUserPlaylists,
   removeVideoFromPlaylist,
+  searchPlaylists,
   updatePlaylist,
 } from "../controllers/playlist.controller";
 
@@ -78,7 +79,40 @@ const router = Router();
  *           type: boolean
  */
 
+// Protected routes
 router.use(authenticate);
+
+/**
+ * @swagger
+ * /playlist/search:
+ *   get:
+ *     tags: [Playlist]
+ *     summary: Search playlists by name or description
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - name: query
+ *         in: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - name: page
+ *         in: query
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - name: limit
+ *         in: query
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Playlists fetched successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.route("/search").get(searchPlaylists);
 
 /**
  * @swagger
@@ -338,7 +372,7 @@ router
   .get(validate(playlistIdParamSchema, ValidationSource.PARAM), getPlaylistById)
   .patch(
     validate(playlistIdParamSchema, ValidationSource.PARAM),
-    validate(PlaylistSchema, ValidationSource.BODY),
+    validate(UpdatePlaylistSchema, ValidationSource.BODY),
     updatePlaylist,
   )
   .delete(validate(playlistIdParamSchema, ValidationSource.PARAM), deletePlaylist);

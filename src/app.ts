@@ -24,17 +24,9 @@ const app = express();
 
 app.set("trust proxy", 1);
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 2000, //
-  message: "Too many requests , please try again later.",
-});
-app.use("/api", limiter);
-app.use(helmet());
-
 app.use(
   cors({
-    origin: env.CORS_ORIGIN,
+    origin: env.CORS_ORIGIN || "http://localhost:3000",
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
     allowedHeaders: [
@@ -48,6 +40,14 @@ app.use(
     ],
   }),
 );
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 1000, //
+  message: "Too many requests , please try again later.",
+});
+app.use("/api", limiter);
+app.use(helmet());
 
 const morganFormat = ":method :url :status :response-time ms";
 app.use(

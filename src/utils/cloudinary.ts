@@ -11,13 +11,20 @@ cloudinary.config({
   api_secret: env.CLOUDINARY_API_SECRET,
 });
 
-const uploadOnCloudinary = async (localFilePath: string): Promise<UploadApiResponse | null> => {
+interface UploadOptions {
+  resource_type?: "auto" | "image" | "video" | "raw";
+  eager?: object[];
+  eager_async?: boolean;
+}
+
+const uploadOnCloudinary = async (
+  localFilePath: string,
+  options: UploadOptions = { resource_type: "auto" },
+): Promise<UploadApiResponse | null> => {
   try {
     if (!localFilePath) return null;
 
-    const response = await cloudinary.uploader.upload(localFilePath, {
-      resource_type: "auto",
-    });
+    const response = await cloudinary.uploader.upload(localFilePath, options);
 
     logger.info(`File uploaded on cloudinary: ${response.url}`);
 

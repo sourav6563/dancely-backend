@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+
 import { Like } from "../models/like.model";
 import { Video } from "../models/video.model"; // Importing Video model to verify existence
 import { ApiError } from "../utils/apiError";
@@ -29,12 +30,26 @@ export const toggleVideoLike = asyncHandler(async (req: Request, res: Response) 
       .json(new apiResponse(200, "Video unliked successfully", { isLiked: false }));
   }
 
-  await Like.create({
-    video: videoId,
-    likedBy: userId,
-  });
+  try {
+    await Like.create({
+      video: videoId,
+      likedBy: userId,
+    });
 
-  return res.status(200).json(new apiResponse(200, "Video liked successfully", { isLiked: true }));
+    return res
+      .status(200)
+      .json(new apiResponse(200, "Video liked successfully", { isLiked: true }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    if (error.code === 11000) {
+      // Duplicate key error means it's already liked (race condition).
+      // Treat as success to be idempotent/graceful.
+      return res
+        .status(200)
+        .json(new apiResponse(200, "Video liked successfully", { isLiked: true }));
+    }
+    throw error;
+  }
 });
 
 export const toggleCommentLike = asyncHandler(async (req: Request, res: Response) => {
@@ -58,14 +73,24 @@ export const toggleCommentLike = asyncHandler(async (req: Request, res: Response
       .json(new apiResponse(200, "Comment unliked successfully", { isLiked: false }));
   }
 
-  await Like.create({
-    comment: commentId,
-    likedBy: userId,
-  });
+  try {
+    await Like.create({
+      comment: commentId,
+      likedBy: userId,
+    });
 
-  return res
-    .status(200)
-    .json(new apiResponse(200, "Comment liked successfully", { isLiked: true }));
+    return res
+      .status(200)
+      .json(new apiResponse(200, "Comment liked successfully", { isLiked: true }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    if (error.code === 11000) {
+      return res
+        .status(200)
+        .json(new apiResponse(200, "Comment liked successfully", { isLiked: true }));
+    }
+    throw error;
+  }
 });
 
 export const toggleCommunityPostLike = asyncHandler(async (req: Request, res: Response) => {
@@ -88,12 +113,22 @@ export const toggleCommunityPostLike = asyncHandler(async (req: Request, res: Re
       .json(new apiResponse(200, "Post unliked successfully", { isLiked: false }));
   }
 
-  await Like.create({
-    communityPost: postId,
-    likedBy: userId,
-  });
+  try {
+    await Like.create({
+      communityPost: postId,
+      likedBy: userId,
+    });
 
-  return res.status(200).json(new apiResponse(200, "Post liked successfully", { isLiked: true }));
+    return res.status(200).json(new apiResponse(200, "Post liked successfully", { isLiked: true }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    if (error.code === 11000) {
+      return res
+        .status(200)
+        .json(new apiResponse(200, "Post liked successfully", { isLiked: true }));
+    }
+    throw error;
+  }
 });
 
 export const getLikedVideos = asyncHandler(async (req: Request, res: Response) => {
@@ -159,8 +194,14 @@ export const getLikedVideos = asyncHandler(async (req: Request, res: Response) =
         createdAt: "$likedVideo.createdAt",
         isPublished: "$likedVideo.isPublished",
         // Flatten the Cloudinary objects to just URLs
-        videoFile: "$likedVideo.videoFile.url",
-        thumbnail: "$likedVideo.thumbnail.url",
+        videoFile: {
+          url: "$likedVideo.videoFile.url",
+          public_id: "$likedVideo.videoFile.public_id",
+        },
+        thumbnail: {
+          url: "$likedVideo.thumbnail.url",
+          public_id: "$likedVideo.thumbnail.public_id",
+        },
       },
     },
   ]);

@@ -1,4 +1,4 @@
-import { userModel } from "../models/user.model";
+import { User } from "../models/user.model";
 import { ApiError } from "../utils/apiError";
 import { asyncHandler } from "../utils/asyncHandler";
 import { apiResponse } from "../utils/apiResponse";
@@ -11,9 +11,9 @@ export const updateName = asyncHandler(async (req: Request, res: Response) => {
   const { name } = req.body;
   const userId = req.user?._id;
 
-  const user = await userModel
-    .findByIdAndUpdate(userId, { $set: { name } }, { new: true })
-    .select(USER_SENSITIVE_FIELDS);
+  const user = await User.findByIdAndUpdate(userId, { $set: { name } }, { new: true }).select(
+    USER_SENSITIVE_FIELDS,
+  );
 
   if (!user) {
     throw new ApiError(404, "Name update failed User not found");
@@ -24,7 +24,7 @@ export const updateName = asyncHandler(async (req: Request, res: Response) => {
 export const updateEmail = asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body;
 
-  const existingUser = await userModel.findOne({
+  const existingUser = await User.findOne({
     email,
     _id: { $ne: req.user?._id },
   });
@@ -33,9 +33,11 @@ export const updateEmail = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(409, "Email is already in use");
   }
 
-  const user = await userModel
-    .findByIdAndUpdate(req.user?._id, { $set: { email } }, { new: true })
-    .select(USER_SENSITIVE_FIELDS);
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    { $set: { email } },
+    { new: true },
+  ).select(USER_SENSITIVE_FIELDS);
 
   if (!user) {
     throw new ApiError(404, "Email update failed User not found");
@@ -64,9 +66,11 @@ export const updateProfileImage = asyncHandler(async (req: Request, res: Respons
       throw new ApiError(500, "profileImage upload failed");
     }
 
-    const user = await userModel
-      .findByIdAndUpdate(req.user?._id, { $set: { profileImage: profileImage.url } }, { new: true })
-      .select(USER_SENSITIVE_FIELDS);
+    const user = await User.findByIdAndUpdate(
+      req.user?._id,
+      { $set: { profileImage: profileImage.url } },
+      { new: true },
+    ).select(USER_SENSITIVE_FIELDS);
 
     if (!user) {
       throw new ApiError(404, "User not found");
@@ -89,7 +93,7 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
   const { username } = req.params;
   const myId = req.user?._id;
 
-  const profile = await userModel.aggregate([
+  const profile = await User.aggregate([
     // 1. find the user
     {
       $match: {
@@ -117,11 +121,32 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
       },
     },
 
+    // 3.5 Lookup videos to calculate total views and likes
+    {
+      $lookup: {
+        from: "videos",
+        localField: "_id",
+        foreignField: "owner",
+        as: "userVideos",
+        pipeline: [{ $match: { isPublished: true } }, { $project: { _id: 1, views: 1 } }],
+      },
+    },
+    {
+      $lookup: {
+        from: "likes",
+        let: { videoIds: "$userVideos._id" },
+        pipeline: [{ $match: { $expr: { $in: ["$video", "$$videoIds"] } } }, { $count: "count" }],
+        as: "totalLikesArr",
+      },
+    },
+
     // 4. add computed fields
     {
       $addFields: {
         followersCount: { $size: "$followers" },
         followingCount: { $size: "$following" },
+        totalViews: { $sum: "$userVideos.views" },
+        totalLikes: { $ifNull: [{ $arrayElemAt: ["$totalLikesArr.count", 0] }, 0] },
 
         isFollowedByMe: {
           $cond: {
@@ -139,11 +164,15 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
         _id: 1,
         username: 1,
         name: 1,
+        bio: 1,
         profileImage: 1,
         isVerified: 1,
         followersCount: 1,
         followingCount: 1,
+        totalViews: 1,
+        totalLikes: 1,
         isFollowedByMe: 1,
+        isFollowed: "$isFollowedByMe",
         createdAt: 1,
       },
     },
@@ -158,11 +187,32 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
     .json(new apiResponse(200, "User profile fetched successfully", profile[0]));
 });
 
+export const searchUsers = asyncHandler(async (req: Request, res: Response) => {
+  const { query = "", page = 1, limit = 10 } = req.query;
+  const searchQuery = (query as string).trim();
+
+  if (!searchQuery) {
+    return res.status(200).json(new apiResponse(200, "Users fetched successfully", []));
+  }
+
+  const searchRegex = new RegExp(searchQuery, "i");
+
+  const users = await User.find({
+    $or: [{ name: searchRegex }, { username: searchRegex }],
+  })
+    .select("_id name username profileImage isVerified")
+    .skip((Number(page) - 1) * Number(limit))
+    .limit(Number(limit))
+    .lean();
+
+  return res.status(200).json(new apiResponse(200, "Users fetched successfully", users));
+});
+
 export const getWatchHistory = asyncHandler(async (req: Request, res: Response) => {
   const { page = 1, limit = 10 } = req.query;
   const userId = req.user?._id;
 
-  const aggregate = userModel.aggregate([
+  const aggregate = User.aggregate([
     {
       $match: {
         _id: userId,
@@ -221,8 +271,14 @@ export const getWatchHistory = asyncHandler(async (req: Request, res: Response) 
         views: 1,
         duration: 1,
         createdAt: 1,
-        videoFile: "$videoFile.url",
-        thumbnail: "$thumbnail.url",
+        videoFile: {
+          url: "$videoFile.url",
+          public_id: "$videoFile.public_id",
+        },
+        thumbnail: {
+          url: "$thumbnail.url",
+          public_id: "$thumbnail.public_id",
+        },
       },
     },
   ]);
@@ -232,9 +288,23 @@ export const getWatchHistory = asyncHandler(async (req: Request, res: Response) 
     limit: parseInt(limit as string, 10),
   };
 
-  const watchHistory = await userModel.aggregatePaginate(aggregate, options);
+  const watchHistory = await User.aggregatePaginate(aggregate, options);
 
   return res
     .status(200)
     .json(new apiResponse(200, "Watch history fetched successfully", watchHistory));
+});
+
+export const updateBio = asyncHandler(async (req: Request, res: Response) => {
+  const { bio } = req.body;
+
+  const user = await User.findByIdAndUpdate(req.user?._id, { $set: { bio } }, { new: true }).select(
+    USER_SENSITIVE_FIELDS,
+  );
+
+  if (!user) {
+    throw new ApiError(404, "Bio update failed User not found");
+  }
+
+  return res.status(200).json(new apiResponse(200, "Bio updated successfully", user));
 });

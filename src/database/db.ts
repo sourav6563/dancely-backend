@@ -8,7 +8,7 @@ const options = {
   autoIndex: true,
   minPoolSize: env.DB_MIN_POOL_SIZE,
   maxPoolSize: env.DB_MAX_POOL_SIZE,
-  connectTimeoutMS: 10000,
+  connectTimeoutMS: 60000,
   socketTimeoutMS: 45000,
 };
 

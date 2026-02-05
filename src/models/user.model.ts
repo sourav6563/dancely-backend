@@ -10,6 +10,7 @@ export interface IUser {
   username: string;
   email: string;
   name: string;
+  bio?: string;
   profileImage?: string;
   password: string;
   watchHistory?: Types.ObjectId[];
@@ -52,6 +53,10 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
     name: {
       type: String,
       required: true,
+      trim: true,
+    },
+    bio: {
+      type: String,
       trim: true,
     },
     profileImage: String,
@@ -116,4 +121,4 @@ userSchema.methods.generateRefreshToken = function () {
 };
 userSchema.plugin(mongooseAggregatePaginate as any);
 
-export const userModel = model<IUser, UserModel>("User", userSchema);
+export const User = model<IUser, UserModel>("User", userSchema);
