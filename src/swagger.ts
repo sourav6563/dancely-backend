@@ -17,14 +17,17 @@ const options: swaggerJSDoc.Options = {
 
     servers: [
       {
-        url: `http://localhost:${env.PORT}/api/v1`,
-        description: "Development Server",
-      },
-      {
         url: `${env.BASE_URL}/api/v1`,
         description: "Production Server",
-      }
-      
+      },
+      ...(env.NODE_ENV === "development"
+        ? [
+            {
+              url: `http://localhost:${env.PORT}/api/v1`,
+              description: "Development Server",
+            },
+          ]
+        : []),
     ],
 
     components: {

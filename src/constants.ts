@@ -3,9 +3,9 @@ import { env } from "./env";
 export const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: env.NODE_ENV === "production",
-  sameSite: "lax" as const,
+  sameSite: env.NODE_ENV === "production" ? "none" : "lax",
   maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-};
+} as const;
 
 export const CookieNames = {
   ACCESS_TOKEN: "accessToken",
