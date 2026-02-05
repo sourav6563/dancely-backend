@@ -5,6 +5,7 @@ export const COOKIE_OPTIONS = {
   secure: env.NODE_ENV === "production",
   sameSite: env.NODE_ENV === "production" ? "none" : "lax",
   maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  path: "/",
 } as const;
 
 export const CookieNames = {
