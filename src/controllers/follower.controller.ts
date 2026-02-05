@@ -30,17 +30,30 @@ export const toggleFollow = asyncHandler(async (req: Request, res: Response) => 
       .json(new apiResponse(200, "Unfollowed successfully", { isFollowed: false }));
   }
 
-  await Follow.create({
-    follower: currentUserId,
-    following: userId,
-  });
-
-  return res.status(200).json(new apiResponse(200, "Followed successfully", { isFollowed: true }));
+  try {
+    await Follow.create({
+      follower: currentUserId,
+      following: userId,
+    });
+    return res
+      .status(200)
+      .json(new apiResponse(200, "Followed successfully", { isFollowed: true }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    // If concurrent requests cause a duplicate key error, it means we are already following.
+    // We can consider this a successful "follow" action or a race condition where we should basically ignore.
+    if (error.code === 11000) {
+      return res
+        .status(200)
+        .json(new apiResponse(200, "Followed successfully", { isFollowed: true }));
+    }
+    throw error;
+  }
 });
 
 export const getUserFollowers = asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
-  const { page = 1, limit = 10 } = req.query;
+  const { page = 1, limit = 10, sortBy = "createdAt", sortOrder = "desc" } = req.query;
 
   const user = await User.findById(userId);
   if (!user) {
@@ -85,6 +98,7 @@ export const getUserFollowers = asyncHandler(async (req: Request, res: Response)
   const options = {
     page: parseInt(page as string, 10),
     limit: parseInt(limit as string, 10),
+    sort: { [sortBy as string]: sortOrder === "desc" ? -1 : 1 },
   };
 
   const followers = await Follow.aggregatePaginate(aggregate, options);
@@ -94,7 +108,7 @@ export const getUserFollowers = asyncHandler(async (req: Request, res: Response)
 
 export const getUserFollowing = asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
-  const { page = 1, limit = 10 } = req.query;
+  const { page = 1, limit = 10, sortBy = "createdAt", sortOrder = "desc" } = req.query;
 
   const user = await User.findById(userId);
   if (!user) {
@@ -142,6 +156,7 @@ export const getUserFollowing = asyncHandler(async (req: Request, res: Response)
   const options = {
     page: parseInt(page as string, 10),
     limit: parseInt(limit as string, 10),
+    sort: { [sortBy as string]: sortOrder === "desc" ? -1 : 1 },
   };
 
   const following = await Follow.aggregatePaginate(aggregate, options);

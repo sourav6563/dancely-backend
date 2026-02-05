@@ -6,6 +6,7 @@ import { postIdParamSchema, userIdParamSchema } from "../validators/common.valid
 import {
   createCommunityPost,
   deleteCommunityPost,
+  getAllCommunityPosts,
   getUserCommunityPosts,
   updateCommunityPost,
 } from "../controllers/communityPost.controller";
@@ -132,6 +133,48 @@ router.use(authenticate);
  *         description: Failed to create post
  */
 router.route("/").post(validate(communityPostSchema, ValidationSource.BODY), createCommunityPost);
+
+/**
+ * @swagger
+ * /communitypost/feed:
+ *   get:
+ *     tags: [CommunityPost]
+ *     summary: Get all community posts (global feed)
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - name: limit
+ *         in: query
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Community feed fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: Community feed fetched successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/PaginatedCommunityPosts'
+ *                 success:
+ *                   type: boolean
+ *       401:
+ *         description: Unauthorized
+ */
+router.route("/feed").get(getAllCommunityPosts);
 
 /**
  * @swagger

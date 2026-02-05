@@ -7,6 +7,7 @@ interface IPlaylist {
   videos: Types.ObjectId[];
   name: string;
   description: string;
+  isPublished: boolean;
 }
 
 const playlistSchema = new Schema<IPlaylist>(
@@ -32,6 +33,10 @@ const playlistSchema = new Schema<IPlaylist>(
       type: String,
       default: "",
       trim: true,
+    },
+    isPublished: {
+      type: Boolean,
+      default: true,
     },
   },
   {

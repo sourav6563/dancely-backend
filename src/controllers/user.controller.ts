@@ -121,11 +121,32 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
       },
     },
 
+    // 3.5 Lookup videos to calculate total views and likes
+    {
+      $lookup: {
+        from: "videos",
+        localField: "_id",
+        foreignField: "owner",
+        as: "userVideos",
+        pipeline: [{ $match: { isPublished: true } }, { $project: { _id: 1, views: 1 } }],
+      },
+    },
+    {
+      $lookup: {
+        from: "likes",
+        let: { videoIds: "$userVideos._id" },
+        pipeline: [{ $match: { $expr: { $in: ["$video", "$$videoIds"] } } }, { $count: "count" }],
+        as: "totalLikesArr",
+      },
+    },
+
     // 4. add computed fields
     {
       $addFields: {
         followersCount: { $size: "$followers" },
         followingCount: { $size: "$following" },
+        totalViews: { $sum: "$userVideos.views" },
+        totalLikes: { $ifNull: [{ $arrayElemAt: ["$totalLikesArr.count", 0] }, 0] },
 
         isFollowedByMe: {
           $cond: {
@@ -143,11 +164,15 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
         _id: 1,
         username: 1,
         name: 1,
+        bio: 1,
         profileImage: 1,
         isVerified: 1,
         followersCount: 1,
         followingCount: 1,
+        totalViews: 1,
+        totalLikes: 1,
         isFollowedByMe: 1,
+        isFollowed: "$isFollowedByMe",
         createdAt: 1,
       },
     },
@@ -160,6 +185,27 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
   return res
     .status(200)
     .json(new apiResponse(200, "User profile fetched successfully", profile[0]));
+});
+
+export const searchUsers = asyncHandler(async (req: Request, res: Response) => {
+  const { query = "", page = 1, limit = 10 } = req.query;
+  const searchQuery = (query as string).trim();
+
+  if (!searchQuery) {
+    return res.status(200).json(new apiResponse(200, "Users fetched successfully", []));
+  }
+
+  const searchRegex = new RegExp(searchQuery, "i");
+
+  const users = await User.find({
+    $or: [{ name: searchRegex }, { username: searchRegex }],
+  })
+    .select("_id name username profileImage isVerified")
+    .skip((Number(page) - 1) * Number(limit))
+    .limit(Number(limit))
+    .lean();
+
+  return res.status(200).json(new apiResponse(200, "Users fetched successfully", users));
 });
 
 export const getWatchHistory = asyncHandler(async (req: Request, res: Response) => {
@@ -225,8 +271,14 @@ export const getWatchHistory = asyncHandler(async (req: Request, res: Response) 
         views: 1,
         duration: 1,
         createdAt: 1,
-        videoFile: "$videoFile.url",
-        thumbnail: "$thumbnail.url",
+        videoFile: {
+          url: "$videoFile.url",
+          public_id: "$videoFile.public_id",
+        },
+        thumbnail: {
+          url: "$thumbnail.url",
+          public_id: "$thumbnail.public_id",
+        },
       },
     },
   ]);
@@ -241,4 +293,18 @@ export const getWatchHistory = asyncHandler(async (req: Request, res: Response) 
   return res
     .status(200)
     .json(new apiResponse(200, "Watch history fetched successfully", watchHistory));
+});
+
+export const updateBio = asyncHandler(async (req: Request, res: Response) => {
+  const { bio } = req.body;
+
+  const user = await User.findByIdAndUpdate(req.user?._id, { $set: { bio } }, { new: true }).select(
+    USER_SENSITIVE_FIELDS,
+  );
+
+  if (!user) {
+    throw new ApiError(404, "Bio update failed User not found");
+  }
+
+  return res.status(200).json(new apiResponse(200, "Bio updated successfully", user));
 });

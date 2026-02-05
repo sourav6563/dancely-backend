@@ -1,8 +1,16 @@
 import z from "zod";
 
 export const uploadVideoSchema = z.object({
-  title: z.string().min(1, "Title is required").trim(),
-  description: z.string().min(1, "Description is required").trim(),
+  title: z
+    .string()
+    .min(1, "Title is required")
+    .max(100, "Title must be less than 100 characters")
+    .trim(),
+  description: z
+    .string()
+    .max(500, "Description must be less than 500 characters")
+    .trim()
+    .optional(),
 });
 
 export const videoQuerySchema = z.object({
@@ -21,6 +29,14 @@ export const videoQuerySchema = z.object({
 export type VideoQuery = z.infer<typeof videoQuerySchema>;
 
 export const videoUpdateDetailsSchema = z.object({
-  title: z.string().min(1, "Title is required").trim(),
-  description: z.string().min(1, "Description is required").trim(),
+  title: z
+    .string()
+    .min(1, "Title is required")
+    .max(100, "Title must be less than 100 characters")
+    .trim(),
+  description: z
+    .string()
+    .max(500, "Description must be less than 500 characters")
+    .trim()
+    .optional(),
 });
