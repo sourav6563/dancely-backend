@@ -21,9 +21,9 @@ const uploadOnCloudinary = async (
   }
 
   try {
-    const response = await cloudinary.uploader.upload(localFilePath, {
+    const response = (await cloudinary.uploader.upload_large(localFilePath, {
       ...options,
-    });
+    })) as UploadApiResponse;
 
     logger.info(`File uploaded on cloudinary: ${response.secure_url}`);
 
@@ -43,7 +43,7 @@ const uploadOnCloudinary = async (
       logger.error("Error deleting local file:", unlinkError);
     }
 
-    return null;
+    throw error;
   }
 };
 
@@ -54,7 +54,7 @@ const deleteOnCloudinary = async (publicId: string): Promise<{ result: string } 
     return result;
   } catch (error) {
     logger.error("Error while deleting file on cloudinary:", error);
-    return null;
+    throw error;
   }
 };
 
