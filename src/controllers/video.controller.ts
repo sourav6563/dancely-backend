@@ -62,15 +62,9 @@ export const uploadVideo = asyncHandler(async (req: Request, res: Response) => {
     // 2. Upload to Cloudinary
     videoUploadResult = await uploadOnCloudinary(videoFile.path, {
       resource_type: "video",
-    }).catch((err) => {
-      logger.error("Cloudinary video upload failed:", err);
-      throw new ApiError(500, "Failed to upload video");
     });
 
-    thumbnailUploadResult = await uploadOnCloudinary(thumbnailFile.path).catch((err) => {
-      logger.error("Cloudinary thumbnail upload failed:", err);
-      throw new ApiError(500, "Failed to upload thumbnail");
-    });
+    thumbnailUploadResult = await uploadOnCloudinary(thumbnailFile.path);
 
     if (!videoUploadResult?.secure_url || !thumbnailUploadResult?.secure_url) {
       throw new ApiError(500, "File upload failed");

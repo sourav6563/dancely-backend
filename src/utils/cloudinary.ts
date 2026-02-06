@@ -1,5 +1,5 @@
-import { v2 as cloudinary, UploadApiResponse, UploadApiOptions } from "cloudinary";
 import { unlink } from "fs/promises";
+import { v2 as cloudinary, UploadApiResponse, UploadApiOptions } from "cloudinary";
 import { existsSync } from "fs";
 import { logger } from "../utils/logger";
 import { env } from "../env";
@@ -16,22 +16,14 @@ const uploadOnCloudinary = async (
   localFilePath: string,
   options: UploadApiOptions = { resource_type: "auto" },
 ): Promise<UploadApiResponse | null> => {
+  if (!localFilePath) {
+    return null;
+  }
+
   try {
-    if (!localFilePath) return null;
-
-    // Use upload_large for video files (handles chunking for files >100MB)
-    // upload_large automatically chunks the file and handles large uploads
-    let response: UploadApiResponse;
-
-    if (options.resource_type === "video") {
-      // upload_large with chunk_size for videos >100MB
-      response = (await cloudinary.uploader.upload_large(localFilePath, {
-        ...options,
-        chunk_size: 20000000, // 20MB chunks
-      })) as UploadApiResponse;
-    } else {
-      response = await cloudinary.uploader.upload(localFilePath, options);
-    }
+    const response = await cloudinary.uploader.upload(localFilePath, {
+      ...options,
+    });
 
     logger.info(`File uploaded on cloudinary: ${response.secure_url}`);
 
