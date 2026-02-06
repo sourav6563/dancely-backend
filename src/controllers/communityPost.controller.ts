@@ -165,7 +165,6 @@ export const getAllCommunityPosts = asyncHandler(async (req: Request, res: Respo
     { $project: { likes: 0 } },
     { $sort: { createdAt: -1 } },
   ]);
-  
 
   const options = {
     page: parseInt(page as string),

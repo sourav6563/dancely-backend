@@ -1,32 +1,39 @@
-import { v2 as cloudinary, UploadApiResponse } from "cloudinary";
+import { v2 as cloudinary, UploadApiResponse, UploadApiOptions } from "cloudinary";
 import { unlink } from "fs/promises";
 import { existsSync } from "fs";
 import { logger } from "../utils/logger";
 import { env } from "../env";
 
-// Configure cloudinary
+// Configure cloudinary with timeout for large uploads
 cloudinary.config({
   cloud_name: env.CLOUDINARY_CLOUD_NAME,
   api_key: env.CLOUDINARY_API_KEY,
   api_secret: env.CLOUDINARY_API_SECRET,
+  timeout: 600000, // 10 minutes timeout for large uploads
 });
-
-interface UploadOptions {
-  resource_type?: "auto" | "image" | "video" | "raw";
-  eager?: object[];
-  eager_async?: boolean;
-}
 
 const uploadOnCloudinary = async (
   localFilePath: string,
-  options: UploadOptions = { resource_type: "auto" },
+  options: UploadApiOptions = { resource_type: "auto" },
 ): Promise<UploadApiResponse | null> => {
   try {
     if (!localFilePath) return null;
 
-    const response = await cloudinary.uploader.upload(localFilePath, options);
+    // Use upload_large for video files (handles chunking for files >100MB)
+    // upload_large automatically chunks the file and handles large uploads
+    let response: UploadApiResponse;
 
-    logger.info(`File uploaded on cloudinary: ${response.url}`);
+    if (options.resource_type === "video") {
+      // upload_large with chunk_size for videos >100MB
+      response = (await cloudinary.uploader.upload_large(localFilePath, {
+        ...options,
+        chunk_size: 20000000, // 20MB chunks
+      })) as UploadApiResponse;
+    } else {
+      response = await cloudinary.uploader.upload(localFilePath, options);
+    }
+
+    logger.info(`File uploaded on cloudinary: ${response.secure_url}`);
 
     // Once the file is uploaded, delete the local file
     await unlink(localFilePath);

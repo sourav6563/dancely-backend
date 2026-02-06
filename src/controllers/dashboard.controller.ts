@@ -3,7 +3,7 @@ import { ApiError } from "../utils/apiError";
 import { apiResponse } from "../utils/apiResponse";
 import { asyncHandler } from "../utils/asyncHandler";
 import { Request, Response } from "express";
-// import { logger } from "../utils/logger";
+
 import { Follow } from "../models/follow.model";
 import { Like } from "../models/like.model";
 

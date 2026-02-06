@@ -62,13 +62,13 @@ export const updateProfileImage = asyncHandler(async (req: Request, res: Respons
 
     profileImage = await uploadOnCloudinary(profileImageLocalpath);
 
-    if (!profileImage?.url) {
+    if (!profileImage?.secure_url) {
       throw new ApiError(500, "profileImage upload failed");
     }
 
     const user = await User.findByIdAndUpdate(
       req.user?._id,
-      { $set: { profileImage: profileImage.url } },
+      { $set: { profileImage: profileImage.secure_url } },
       { new: true },
     ).select(USER_SENSITIVE_FIELDS);
 

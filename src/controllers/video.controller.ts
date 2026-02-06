@@ -72,23 +72,23 @@ export const uploadVideo = asyncHandler(async (req: Request, res: Response) => {
       throw new ApiError(500, "Failed to upload thumbnail");
     });
 
-    if (!videoUploadResult?.url || !thumbnailUploadResult?.url) {
+    if (!videoUploadResult?.secure_url || !thumbnailUploadResult?.secure_url) {
       throw new ApiError(500, "File upload failed");
     }
 
     logger.info(
-      `User ${owner} uploaded files: video=${videoUploadResult.url}, thumbnail=${thumbnailUploadResult.url}`,
+      `User ${owner} uploaded files: video=${videoUploadResult.secure_url}, thumbnail=${thumbnailUploadResult.secure_url}`,
     );
 
     // 3. Create Database Entry
     const newVideo = await Video.create({
       owner,
       videoFile: {
-        url: videoUploadResult.url,
+        url: videoUploadResult.secure_url,
         public_id: videoUploadResult.public_id,
       },
       thumbnail: {
-        url: thumbnailUploadResult.url,
+        url: thumbnailUploadResult.secure_url,
         public_id: thumbnailUploadResult.public_id,
       },
       title,
@@ -551,7 +551,7 @@ export const updateVideoThumbnail = asyncHandler(async (req: Request, res: Respo
 
     thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
 
-    if (!thumbnail?.url) {
+    if (!thumbnail?.secure_url) {
       throw new ApiError(500, "Thumbnail upload failed");
     }
 
@@ -560,7 +560,7 @@ export const updateVideoThumbnail = asyncHandler(async (req: Request, res: Respo
       {
         $set: {
           thumbnail: {
-            url: thumbnail.url,
+            url: thumbnail.secure_url,
             public_id: thumbnail.public_id,
           },
         },
