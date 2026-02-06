@@ -282,6 +282,7 @@ export const getMyVideos = asyncHandler(async (req: Request, res: Response) => {
         isPublished: 1,
         createdAt: 1,
         updatedAt: 1,
+        duration: 1,
         videoFile: {
           url: "$videoFile.url",
           public_id: "$videoFile.public_id",
