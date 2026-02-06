@@ -20,7 +20,7 @@ export enum EmailTypes {
 
 export const ALLOWED_VIDEO_TYPES = ["video/mp4"];
 export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png"];
-export const MAX_VIDEO_SIZE = 250 * 1024 * 1024; // 250MB
+export const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
 export const MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024; // 5MB
 
 export const EMAIL_VERIFICATION_EXPIRY_MS = 15 * 60 * 1000;

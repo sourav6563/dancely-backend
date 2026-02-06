@@ -66,10 +66,7 @@ export const uploadVideo = asyncHandler(async (req: Request, res: Response) => {
 
     thumbnailUploadResult = await uploadOnCloudinary(thumbnailFile.path);
 
-    if (!videoUploadResult?.secure_url || !thumbnailUploadResult?.secure_url) {
-      throw new ApiError(500, "File upload failed");
-    }
-
+    // Removed null checks as uploadOnCloudinary throws error on failure
     logger.info(
       `User ${owner} uploaded files: video=${videoUploadResult.secure_url}, thumbnail=${thumbnailUploadResult.secure_url}`,
     );
@@ -545,9 +542,7 @@ export const updateVideoThumbnail = asyncHandler(async (req: Request, res: Respo
 
     thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
 
-    if (!thumbnail?.secure_url) {
-      throw new ApiError(500, "Thumbnail upload failed");
-    }
+    // Removed null check as uploadOnCloudinary now throws error on failure
 
     const updatedVideo = await Video.findByIdAndUpdate(
       videoId,

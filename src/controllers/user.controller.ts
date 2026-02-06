@@ -62,9 +62,7 @@ export const updateProfileImage = asyncHandler(async (req: Request, res: Respons
 
     profileImage = await uploadOnCloudinary(profileImageLocalpath);
 
-    if (!profileImage?.secure_url) {
-      throw new ApiError(500, "profileImage upload failed");
-    }
+    // Removed null check as uploadOnCloudinary now throws error on failure
 
     const user = await User.findByIdAndUpdate(
       req.user?._id,
