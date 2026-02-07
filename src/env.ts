@@ -25,6 +25,7 @@ const envSchema = z.object({
   CLOUDINARY_API_KEY: z.string().min(1),
   CLOUDINARY_API_SECRET: z.string().min(1),
   BASE_URL: z.string().min(1),
+  COOKIE_DOMAIN: z.string().optional(),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
