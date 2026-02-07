@@ -6,7 +6,6 @@ const server = app.listen(env.PORT, () => {
   logger.info(`server running on port : ${env.PORT}`);
 });
 
-
 server.on("error", (error) => {
   logger.error(error);
   process.exit(1);
