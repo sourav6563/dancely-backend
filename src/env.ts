@@ -19,6 +19,7 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRY: z.string().min(1),
   CORS_ORIGIN: z.string().min(1),
   RESEND_API_KEY: z.string().min(1),
+  EMAIL_FROM: z.string().min(1),
 
   CLOUDINARY_CLOUD_NAME: z.string().min(1),
   CLOUDINARY_API_KEY: z.string().min(1),

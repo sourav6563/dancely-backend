@@ -17,7 +17,7 @@ export const sendEmail = async (
     const subject = type === EmailTypes.VERIFY ? "Verify your email" : "Reset your password";
 
     await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: env.EMAIL_FROM,
       to: email,
       subject,
       html: getEmailTemplate(type, username, code),
