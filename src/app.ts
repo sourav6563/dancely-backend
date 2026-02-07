@@ -26,9 +26,7 @@ app.set("trust proxy", 1);
 
 app.use(
   cors({
-    origin: env.CORS_ORIGIN
-      ? env.CORS_ORIGIN.split(",").map((origin) => origin.trim())
-      : "http://localhost:3000",
+    origin: env.CORS_ORIGIN || "http://localhost:3000",
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
     allowedHeaders: [
