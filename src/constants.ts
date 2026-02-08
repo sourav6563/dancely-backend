@@ -3,7 +3,7 @@ import { env } from "./env";
 export const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: env.NODE_ENV === "production",
-  sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+  sameSite:"lax",
   maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   path: "/",
   domain: env.COOKIE_DOMAIN,
