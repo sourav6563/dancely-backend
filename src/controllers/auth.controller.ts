@@ -129,7 +129,7 @@ export const verifyAccount = asyncHandler(async (req: Request, res: Response) =>
     throw new ApiError(400, "User already verified");
   }
 
-  const isCodeValid = user.emailVerificationCode === code;
+  const isCodeValid = await user.isEmailVerificationCodeCorrect(code);
   const isCodeNotExpired =
     user.emailVerificationExpires && new Date(user.emailVerificationExpires) > new Date();
 
@@ -293,7 +293,7 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
     throw new ApiError(404, "User not found");
   }
 
-  const isCodeValid = user.passwordResetCode === code;
+  const isCodeValid = await user.isPasswordResetCodeCorrect(code);
   const isCodeNotExpired =
     user.passwordResetExpires && new Date(user.passwordResetExpires) > new Date();
 

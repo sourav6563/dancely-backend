@@ -26,6 +26,8 @@ export interface IUserMethods {
   isPasswordCorrect(password: string): Promise<boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): string;
+  isEmailVerificationCodeCorrect(code: string): Promise<boolean>;
+  isPasswordResetCodeCorrect(code: string): Promise<boolean>;
 }
 
 // Create a type that combines User interface with UserMethods
@@ -92,12 +94,27 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
 );
 
 userSchema.pre("save", async function () {
-  if (!this.isModified("password")) return;
-  this.password = await bcrypt.hash(this.password, 10);
+  if (this.isModified("password")) {
+    this.password = await bcrypt.hash(this.password, 10);
+  }
+  if (this.isModified("emailVerificationCode") && this.emailVerificationCode) {
+    this.emailVerificationCode = await bcrypt.hash(this.emailVerificationCode, 10);
+  }
+  if (this.isModified("passwordResetCode") && this.passwordResetCode) {
+    this.passwordResetCode = await bcrypt.hash(this.passwordResetCode, 10);
+  }
 });
 
 userSchema.methods.isPasswordCorrect = function (password: string) {
   return bcrypt.compare(password, this.password);
+};
+
+userSchema.methods.isEmailVerificationCodeCorrect = function (code: string) {
+  return bcrypt.compare(code, this.emailVerificationCode || "");
+};
+
+userSchema.methods.isPasswordResetCodeCorrect = function (code: string) {
+  return bcrypt.compare(code, this.passwordResetCode || "");
 };
 
 userSchema.methods.generateAccessToken = function () {
