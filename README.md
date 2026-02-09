@@ -4,8 +4,6 @@
 
 ### The robust RESTful API powering the next-generation social video platform for dancers.
 
-[System Status](https://stats.uptimerobot.com/cmOjvPimbc)
-
 </div>
 
 <br />
