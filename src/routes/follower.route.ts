@@ -167,6 +167,17 @@ router
  *         schema:
  *           type: integer
  *           default: 10
+ *       - name: sortBy
+ *         in: query
+ *         schema:
+ *           type: string
+ *           default: createdAt
+ *       - name: sortOrder
+ *         in: query
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
  *     responses:
  *       200:
  *         description: Followers fetched successfully
@@ -218,6 +229,17 @@ router
  *         schema:
  *           type: integer
  *           default: 10
+ *       - name: sortBy
+ *         in: query
+ *         schema:
+ *           type: string
+ *           default: createdAt
+ *       - name: sortOrder
+ *         in: query
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
  *     responses:
  *       200:
  *         description: Following list fetched successfully
