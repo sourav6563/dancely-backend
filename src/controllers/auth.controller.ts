@@ -185,6 +185,9 @@ export const refreshAccessToken = asyncHandler(async (req: Request, res: Respons
     req.cookies?.[CookieNames.REFRESH_TOKEN] || req.header("authorization")?.replace("Bearer ", "");
 
   if (!incomingRefreshToken) {
+    // Clear any remaining stale access token cookie
+    // Without this, a stale access token would trigger /auth/me → 401 → /refresh → 401 on every page load
+    res.clearCookie(CookieNames.ACCESS_TOKEN, COOKIE_OPTIONS);
     throw new ApiError(401, "UNAUTHORIZED");
   }
 
