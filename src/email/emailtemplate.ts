@@ -4,7 +4,7 @@ export const getEmailTemplate = (type: EmailTypes, username: string, code: strin
   const isVerify = type === EmailTypes.VERIFY;
   const title = isVerify ? "Verify Your Email" : "Reset Your Password";
   const description = isVerify
-    ? "Thank you for signing up! Please use the verification code below to confirm your email address and complete your registration."
+    ? "Thank you for registering! Please use the verification code below to confirm your email address and complete your registration."
     : "We received a request to reset your password. Please use the code below to create a new password.";
 
   return `
