@@ -202,7 +202,9 @@ export const refreshAccessToken = asyncHandler(async (req: Request, res: Respons
     throw new ApiError(401, "INVALID_REFRESH_TOKEN");
   }
 
-  const { accessToken, refreshToken } = await generateToken(user._id);
+  // Instead of generating a new refresh token, we reuse the incoming one to prevent race conditions
+  const accessToken = user.generateAccessToken();
+  const refreshToken = incomingRefreshToken;
 
   return res
     .status(200)
