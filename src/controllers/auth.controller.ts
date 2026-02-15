@@ -210,9 +210,12 @@ export const refreshAccessToken = asyncHandler(async (req: Request, res: Respons
     throw new ApiError(401, "INVALID_REFRESH_TOKEN");
   }
 
-  // Instead of generating a new refresh token, we reuse the incoming one to prevent race conditions
+  // Rotate refresh token — generate a new one and save to DB
+  // Safe because: single-session design + frontend interceptor queue prevent race conditions
   const accessToken = user.generateAccessToken();
-  const refreshToken = incomingRefreshToken;
+  const refreshToken = user.generateRefreshToken();
+  user.refreshToken = refreshToken;
+  await user.save({ validateBeforeSave: false });
 
   return res
     .status(200)
