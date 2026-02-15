@@ -193,12 +193,20 @@ export const refreshAccessToken = asyncHandler(async (req: Request, res: Respons
   try {
     decodedToken = jwt.verify(incomingRefreshToken, env.JWT_REFRESH_SECRET) as jwt.JwtPayload;
   } catch {
+    // Token is expired or malformed — clear the bad cookies
+    res
+      .clearCookie(CookieNames.ACCESS_TOKEN, COOKIE_OPTIONS)
+      .clearCookie(CookieNames.REFRESH_TOKEN, COOKIE_OPTIONS);
     throw new ApiError(401, "INVALID_REFRESH_TOKEN");
   }
 
   const user = await User.findById(decodedToken._id);
 
   if (!user || user.refreshToken !== incomingRefreshToken) {
+    // Token doesn't match DB — clear the bad cookies
+    res
+      .clearCookie(CookieNames.ACCESS_TOKEN, COOKIE_OPTIONS)
+      .clearCookie(CookieNames.REFRESH_TOKEN, COOKIE_OPTIONS);
     throw new ApiError(401, "INVALID_REFRESH_TOKEN");
   }
 
