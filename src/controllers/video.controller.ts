@@ -62,8 +62,6 @@ export const uploadVideo = asyncHandler(async (req: Request, res: Response) => {
     // 2. Upload to Cloudinary
     videoUploadResult = await uploadOnCloudinary(videoFile.path, {
       resource_type: "video",
-      eager: [{ streaming_profile: "hd", format: "m3u8" }],
-      eager_async: true,
     });
 
     thumbnailUploadResult = await uploadOnCloudinary(thumbnailFile.path);
