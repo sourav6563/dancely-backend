@@ -22,6 +22,19 @@ This document provides a comprehensive overview of the Dancely backend system, a
 | **Frontend Repository** | https://github.com/sourav6563/dancely-frontend |
 | **Database ERD** | https://app.eraser.io/workspace/HiohxqmgH1LXubmwzeWW?diagram=pvt-YmUzuW7YbJOMwJOUg |
 
+## Demo Credentials
+Use the following credentials to access the demo account:
+
+**Email**
+```
+dancelydemo@gmail.com
+```
+
+**Password**
+```
+Dancely@3900
+```
+
 ---
 
 ## System Capabilities
